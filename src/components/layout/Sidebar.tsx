@@ -1,14 +1,21 @@
 import React from 'react'
-import { FolderKanban, Images, Activity, Users, LogOut, Layers } from 'lucide-react'
+import { FolderKanban, Images, Activity, Users, LogOut, Layers, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
 
 interface SidebarProps {
   currentView: string
   setCurrentView: (view: string) => void
+  isOpenMobile: boolean
+  setIsOpenMobile: (open: boolean) => void
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  currentView,
+  setCurrentView,
+  isOpenMobile,
+  setIsOpenMobile
+}) => {
   const { user, logout } = useAuth()
 
   const mainNav = [
@@ -21,18 +28,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView })
     mainNav.push({ id: 'users', label: 'User Management', icon: Users })
   }
 
-  return (
-    <aside className="w-64 border-r bg-card flex flex-col justify-between h-screen sticky top-0 shrink-0">
+  const navContent = (
+    <div className="flex flex-col justify-between h-full">
       <div>
         {/* T3G Branding Header */}
-        <div className="p-5 border-b flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold shadow-md">
-            <Layers className="h-5 w-5" />
+        <div className="p-5 border-b flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold shadow-md">
+              <Layers className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="font-bold text-base tracking-tight text-foreground">T3G MediaBlobKit</h1>
+              <p className="text-xs text-muted-foreground">Admin Command Center</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-base tracking-tight text-foreground">T3G MediaBlobKit</h1>
-            <p className="text-xs text-muted-foreground">Admin Command Center</p>
-          </div>
+
+          {/* Close button on mobile */}
+          <button
+            onClick={() => setIsOpenMobile(false)}
+            className="md:hidden text-muted-foreground hover:text-foreground p-1"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
         {/* Grouped Sidebar Navigation */}
@@ -48,7 +65,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView })
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setCurrentView(item.id)}
+                    onClick={() => {
+                      setCurrentView(item.id)
+                      setIsOpenMobile(false)
+                    }}
                     className={cn(
                       "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                       isActive
@@ -84,6 +104,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView })
           </button>
         </div>
       </div>
-    </aside>
+    </div>
+  )
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-64 border-r bg-card flex-col h-screen sticky top-0 shrink-0">
+        {navContent}
+      </aside>
+
+      {/* Mobile Drawer Backdrop */}
+      {isOpenMobile && (
+        <div
+          onClick={() => setIsOpenMobile(false)}
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden animate-in fade-in-0"
+        />
+      )}
+
+      {/* Mobile Slide-Over Sidebar */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-72 bg-card border-r shadow-xl transition-transform duration-300 ease-in-out md:hidden",
+          isOpenMobile ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        {navContent}
+      </aside>
+    </>
   )
 }
