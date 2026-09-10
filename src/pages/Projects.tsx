@@ -36,7 +36,7 @@ export const Projects: React.FC = () => {
   const [isSoftDelete, setIsSoftDelete] = useState(true)
   const [deleting, setDeleting] = useState(false)
 
-  const fetchProjects = async () => {
+  const fetchProjects = React.useCallback(async () => {
     try {
       const res = await api.get<PaginatedResponse<Project>>('/projects')
       setProjects(res.data.data)
@@ -45,11 +45,11 @@ export const Projects: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchProjects()
-  }, [])
+  }, [fetchProjects])
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault()

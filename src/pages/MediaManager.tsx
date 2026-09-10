@@ -22,7 +22,7 @@ export const MediaManager: React.FC = () => {
   const [selectedVariants, setSelectedVariants] = useState<Record<string, boolean>>({})
   const [uploading, setUploading] = useState(false)
 
-  const fetchProjects = async () => {
+  const fetchProjects = React.useCallback(async () => {
     try {
       const res = await api.get<PaginatedResponse<Project>>('/projects')
       setProjects(res.data.data)
@@ -32,9 +32,9 @@ export const MediaManager: React.FC = () => {
     } catch (e) {
       console.error(e)
     }
-  }
+  }, [selectedProjectId])
 
-  const fetchFiles = async () => {
+  const fetchFiles = React.useCallback(async () => {
     setLoading(true)
     try {
       const url = selectedProjectId ? `/files?project_id=${selectedProjectId}` : '/files'
@@ -45,15 +45,15 @@ export const MediaManager: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedProjectId])
 
   useEffect(() => {
     fetchProjects()
-  }, [])
+  }, [fetchProjects])
 
   useEffect(() => {
     fetchFiles()
-  }, [selectedProjectId])
+  }, [fetchFiles])
 
   const activeProject = projects.find((p) => p.id === selectedProjectId)
 

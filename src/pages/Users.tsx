@@ -19,7 +19,7 @@ export const UsersPage: React.FC = () => {
   const [newRole, setNewRole] = useState<Role>('user')
   const [createError, setCreateError] = useState('')
 
-  const fetchUsers = async () => {
+  const fetchUsers = React.useCallback(async () => {
     try {
       const res = await api.get<PaginatedResponse<User>>('/users')
       setUsers(res.data.data)
@@ -28,11 +28,11 @@ export const UsersPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchUsers()
-  }, [])
+  }, [fetchUsers])
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()

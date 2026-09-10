@@ -15,7 +15,7 @@ export const JobMonitor: React.FC = () => {
   const [selectedJob, setSelectedJob] = useState<JobItem | null>(null)
   const [sseConnected, setSseConnected] = useState(false)
 
-  const fetchJobs = async () => {
+  const fetchJobs = React.useCallback(async () => {
     try {
       const res = await api.get<Record<string, { jobs: JobItem[] }>>('/admin/jobs')
       const allJobs: JobItem[] = []
@@ -29,12 +29,14 @@ export const JobMonitor: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchJobs()
 
-    const sseUrl = `${import.meta.env.VITE_API_URL || '/api'}/admin/jobs/events`
+    const token = localStorage.getItem('access_token')
+    const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : ''
+    const sseUrl = `${import.meta.env.VITE_API_URL || '/api'}/admin/jobs/events${tokenQuery}`
     const es = new EventSource(sseUrl)
     es.onopen = () => setSseConnected(true)
     es.onerror = () => setSseConnected(false)
@@ -60,7 +62,7 @@ export const JobMonitor: React.FC = () => {
     return () => {
       es.close()
     }
-  }, [])
+  }, [fetchJobs])
 
   const filteredJobs = jobs.filter((j) => {
     if (activeTab === 'all') return true
