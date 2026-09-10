@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Key, Trash2, Copy, Check, SlidersHorizontal, RefreshCw } from 'lucide-react'
+import { Plus, Key, Trash2, Copy, Check, SlidersHorizontal, RefreshCw, CheckSquare, Square, AlertTriangle } from 'lucide-react'
 
 export const Projects: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([])
@@ -18,7 +18,7 @@ export const Projects: React.FC = () => {
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectDesc, setNewProjectDesc] = useState('')
 
-  // Selected Project for API Keys / Settings
+  // Selected Project for API Keys / Settings / Delete
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false)
@@ -30,6 +30,11 @@ export const Projects: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [variantsJson, setVariantsJson] = useState('')
   const [settingsError, setSettingsError] = useState('')
+
+  // Delete Project Modal State
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
+  const [isSoftDelete, setIsSoftDelete] = useState(true)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchProjects = async () => {
     try {
@@ -63,7 +68,7 @@ export const Projects: React.FC = () => {
       setNewProjectName('')
       setNewProjectDesc('')
       fetchProjects()
-    } catch (err) {
+    } catch {
       alert('Failed to create project')
     }
   }
@@ -137,6 +142,21 @@ export const Projects: React.FC = () => {
     }
   }
 
+  const handleConfirmDeleteProject = async () => {
+    if (!projectToDelete) return
+    setDeleting(true)
+    try {
+      const queryParam = isSoftDelete ? '' : '?permanent=true'
+      await api.delete(`/projects/${projectToDelete.id}${queryParam}`)
+      setProjectToDelete(null)
+      fetchProjects()
+    } catch {
+      alert('Failed to delete project')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -167,12 +187,26 @@ export const Projects: React.FC = () => {
             return (
               <Card key={project.id} className="flex flex-col justify-between hover:shadow-md transition-shadow border-border/80">
                 <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-2">
                     <div>
                       <CardTitle>{project.name}</CardTitle>
                       <CardDescription className="line-clamp-2 mt-1">{project.description || 'No description provided'}</CardDescription>
                     </div>
-                    <Badge variant="secondary">{variantCount} Variants</Badge>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Badge variant="secondary">{variantCount} Variants</Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setProjectToDelete(project)
+                          setIsSoftDelete(true)
+                        }}
+                        className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                        title="Delete Project"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
 
@@ -215,6 +249,51 @@ export const Projects: React.FC = () => {
           })}
         </div>
       )}
+
+      {/* Delete Project Modal with Soft/Hard option */}
+      <Dialog open={!!projectToDelete} onClose={() => setProjectToDelete(null)} title={`Delete Project - ${projectToDelete?.name}`}>
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs">
+            <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-amber-700 dark:text-amber-400">Confirm Project Deletion</p>
+              <p className="mt-0.5 text-muted-foreground">Choose whether to soft-delete (recoverable within 30 days) or permanently purge immediately.</p>
+            </div>
+          </div>
+
+          <label
+            onClick={() => setIsSoftDelete(!isSoftDelete)}
+            className="flex items-start gap-2.5 p-3 rounded-lg border bg-muted/30 cursor-pointer select-none"
+          >
+            {isSoftDelete ? (
+              <CheckSquare className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+            ) : (
+              <Square className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+            )}
+            <div className="text-xs">
+              <span className="font-semibold text-foreground">Soft Delete (Pre-checked / Safe)</span>
+              <p className="text-muted-foreground text-[11px] mt-0.5">
+                {isSoftDelete
+                  ? 'Retains project assets for 30 days before auto-cleanup. Can be restored anytime via API.'
+                  : '⚠️ UNCHECKED: Hard Delete selected! All S3 original files, variants, and DB records will be permanently purged immediately.'}
+              </p>
+            </div>
+          </label>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setProjectToDelete(null)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button
+              variant={isSoftDelete ? 'default' : 'destructive'}
+              onClick={handleConfirmDeleteProject}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting...' : isSoftDelete ? 'Soft Delete Project' : 'Permanently Delete'}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
 
       {/* Create Project Modal */}
       <Dialog open={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Create New Project">
