@@ -1,32 +1,116 @@
-# React + TypeScript + Vite
+# MediaBlobKit Frontend Dashboard (React + TS)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+[![React](https://img.shields.io/badge/react-19-blue.svg)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/typescript-5.8-blue.svg)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/vite-6.2-purple.svg)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/tailwind-3.4-38bdf8.svg)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-Currently, two official plugins are available:
+**MediaBlobKit Frontend Dashboard** is a modern, responsive administration control panel for **MediaBlobKit (Rust Backend)**. Built with **React 18**, **TypeScript**, **Vite**, **Tailwind CSS**, and **Shadcn UI**, it provides real-time monitoring and asset management across multi-tenant media projects.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🚀 Key Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+* **Authentication & Session Management**:
+  * JWT Bearer authentication with automatic token refresh on `401 Unauthorized` responses (`POST /auth/refresh`).
+  * Password visibility eye toggle, error feedback, and local session caching.
+* **Multi-Tenant Project Manager**:
+  * Project CRUD operations (`POST`, `GET`, `PUT`, `DELETE` `/projects`).
+  * Visual & JSON variant preset rules configurator (`width`, `height`, `fit`, `format`, `quality`).
+  * Project API Key provisioner with instant secret copy-to-clipboard button.
+  * Manual variant regeneration trigger (`POST /projects/:id/sync-variants`).
+* **Media Gallery & Per-Upload Variant Selection**:
+  * Media asset grid with image thumbnails, file size formatters, and generated variant pill tags.
+  * Presigned download link viewer (`GET /files/:id/content`).
+  * File uploader modal with **per-upload variant checkboxes** (`POST /upload/image?variants=thumbnail,card`).
+* **Real-Time SSE Job Monitor**:
+  * Connects directly to backend Server-Sent Events stream (`GET /admin/jobs/events`).
+  * Real-time metrics breakdown for `Pending`, `Processing`, `Completed`, and `Failed` rendering tasks.
+  * Automatic polling fallback and payload inspection modal.
+* **Superuser User Management**:
+  * Provision Admin and User access accounts with role-based badges.
+* **Mobile Responsive**:
+  * Mobile header bar with logo home link and right hamburger menu button (`<Menu />`).
+  * Slide-over drawer navigation with backdrop blur for small viewports.
+  * IST (`Asia/Kolkata`) date and time formatting.
 
-## Expanding the Oxlint configuration
+---
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## ⚙️ Environment Configuration
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+Create a `.env` file in the project root:
+
+```env
+# Backend API URL (Proxied in Vite / Nginx)
+VITE_API_URL=/api
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+---
+
+## 💻 Local Setup & Execution
+
+### Prerequisites
+
+- **Node.js** (v20+)
+- **npm** (v10+)
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Start Development Server
+
+```bash
+npm run dev
+```
+
+The application will start at `http://localhost:5173`. API requests to `/api` are automatically proxied to the Rust backend running on `http://localhost:3000`.
+
+### 3. Production Build
+
+```bash
+npm run build
+```
+
+Generates optimized static HTML, CSS, and JS bundles in the `dist/` directory.
+
+---
+
+## 🐳 Deployment with Docker
+
+### Option 1: Docker Compose (1-Step Deployment)
+
+Build and run the lightweight Nginx container (`nginx:alpine`, <20MB RAM) with a single command:
+
+```bash
+docker compose up -d --build
+```
+
+To stop the container:
+
+```bash
+docker compose down
+```
+
+### Option 2: Direct Docker CLI
+
+```bash
+# Build Docker image
+docker build -t media-blob-kit-fe-react .
+
+# Run Docker container
+docker run -d \
+  --name media-blob-kit-fe \
+  -p 5173:80 \
+  --restart unless-stopped \
+  media-blob-kit-fe-react
+```
+
+---
+
+## 📄 License
+
+Copyright (C) 2025 CodeArtisanRiz. This project is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0).
