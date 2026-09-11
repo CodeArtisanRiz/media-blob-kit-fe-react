@@ -1,12 +1,14 @@
 import React, { useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
+import { useTheme } from '@/context/ThemeContext'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Layers, Lock, User, Eye, EyeOff } from 'lucide-react'
+import { Layers, Lock, User, Eye, EyeOff, Sun, Moon } from 'lucide-react'
 
 export const Login: React.FC = () => {
   const { login } = useAuth()
+  const { resolvedTheme, toggleTheme } = useTheme()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -27,7 +29,18 @@ export const Login: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
+      {/* Top-right theme toggle */}
+      <div className="absolute top-4 right-4">
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-lg border bg-card text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
+        >
+          {resolvedTheme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </button>
+      </div>
+
       <Card className="w-full max-w-md shadow-xl border-border/60">
         <CardHeader className="space-y-3 text-center">
           <div className="mx-auto h-12 w-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold shadow-lg">
@@ -35,7 +48,7 @@ export const Login: React.FC = () => {
           </div>
           <div>
             <CardTitle className="text-2xl font-bold">MediaBlobKit</CardTitle>
-            <CardDescription className="text-sm mt-1">Sign in to your T3G Command Center account</CardDescription>
+            <CardDescription className="text-sm mt-1">Sign in to your MediaBlobKit account</CardDescription>
           </div>
         </CardHeader>
 

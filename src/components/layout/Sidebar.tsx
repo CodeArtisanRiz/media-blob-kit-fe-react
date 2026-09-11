@@ -1,6 +1,7 @@
 import React from 'react'
-import { FolderKanban, Images, Activity, Users, LogOut, Layers, X } from 'lucide-react'
+import { FolderKanban, Images, Activity, Users, LogOut, Layers, X, Sun, Moon } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { useTheme } from '@/context/ThemeContext'
 import { cn } from '@/lib/utils'
 
 interface SidebarProps {
@@ -17,6 +18,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setIsOpenMobile
 }) => {
   const { user, logout } = useAuth()
+  const { resolvedTheme, toggleTheme } = useTheme()
 
   const mainNav = [
     { id: 'projects', label: 'Projects', icon: FolderKanban },
@@ -31,15 +33,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navContent = (
     <div className="flex flex-col justify-between h-full">
       <div>
-        {/* T3G Branding Header */}
+        {/* Branding Header */}
         <div className="p-5 border-b flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold shadow-md">
               <Layers className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="font-bold text-base tracking-tight text-foreground">T3G MediaBlobKit</h1>
-              <p className="text-xs text-muted-foreground">Admin Command Center</p>
+              <h1 className="font-bold text-base tracking-tight text-foreground">MediaBlobKit</h1>
+              <p className="text-xs text-muted-foreground">Media & Image Suite</p>
             </div>
           </div>
 
@@ -95,13 +97,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {user?.role}
             </span>
           </div>
-          <button
-            onClick={logout}
-            title="Logout"
-            className="h-8 w-8 rounded-lg border flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={toggleTheme}
+              title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
+              className="h-8 w-8 rounded-lg border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              {resolvedTheme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+            <button
+              onClick={logout}
+              title="Logout"
+              className="h-8 w-8 rounded-lg border flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

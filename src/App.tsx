@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
+import { ThemeProvider } from '@/context/ThemeContext'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Login } from '@/pages/Login'
 import { Projects } from '@/pages/Projects'
@@ -16,7 +17,7 @@ const DashboardContent: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center text-sm text-muted-foreground">
-        Loading Command Center...
+        Loading MediaBlobKit...
       </div>
     )
   }
@@ -37,8 +38,8 @@ const DashboardContent: React.FC = () => {
             <Layers className="h-4 w-4" />
           </div>
           <div>
-            <span className="font-bold text-sm text-foreground leading-none block">T3G MediaBlobKit</span>
-            <span className="text-[10px] text-muted-foreground block">Command Center</span>
+            <span className="font-bold text-sm text-foreground leading-none block">MediaBlobKit</span>
+            <span className="text-[10px] text-muted-foreground block">Media & Image Suite</span>
           </div>
         </button>
 
@@ -73,9 +74,11 @@ const DashboardContent: React.FC = () => {
 
 export function App() {
   return (
-    <AuthProvider>
-      <DashboardContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <DashboardContent />
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 
