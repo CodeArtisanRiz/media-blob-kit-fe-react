@@ -74,63 +74,71 @@ export const UsersPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1 border-b border-border/60">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">User Management</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Superuser control panel for provisioning Admin and User access accounts
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">User Management</h2>
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/60">
+              {users.length} accounts
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Superuser control panel for provisioning system access accounts and managing RBAC permissions
           </p>
         </div>
 
-        <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
+        <Button onClick={() => setIsCreateOpen(true)} className="gap-1.5 self-start sm:self-auto" size="sm">
+          <Plus className="h-3.5 w-3.5" />
           <span>Provision User</span>
         </Button>
       </div>
 
       {loading ? (
-        <div className="py-12 text-center text-sm text-muted-foreground">Loading users...</div>
+        <div className="py-20 text-center text-xs text-muted-foreground flex items-center justify-center gap-2 font-mono">
+          <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+          Loading user records...
+        </div>
       ) : (
-        <div className="border rounded-xl bg-card overflow-hidden shadow-sm">
+        <div className="border border-border/80 rounded-lg bg-card/60 overflow-hidden shadow-sm backdrop-blur-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-muted/50 border-b font-semibold uppercase text-muted-foreground">
+              <thead className="bg-background/80 border-b border-border/70 text-[10px] font-medium uppercase text-muted-foreground tracking-wider font-mono">
                 <tr>
-                  <th className="p-3 pl-4">Username</th>
-                  <th className="p-3">Role</th>
-                  <th className="p-3">User ID</th>
-                  <th className="p-3">Created Date</th>
-                  <th className="p-3 pr-4 text-right">Actions</th>
+                  <th className="py-2.5 px-4 font-sans">Username</th>
+                  <th className="py-2.5 px-3">Role</th>
+                  <th className="py-2.5 px-3">User ID</th>
+                  <th className="py-2.5 px-3 font-sans">Created Date</th>
+                  <th className="py-2.5 px-4 text-right font-sans">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-border/40 font-mono">
                 {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="p-3 pl-4 font-semibold text-foreground flex items-center gap-2">
+                  <tr key={u.id} className="hover:bg-white/[0.03] transition-colors group font-sans">
+                    <td className="py-2.5 px-4 font-medium text-foreground flex items-center gap-2">
                       {u.role === 'su' ? (
-                        <ShieldCheck className="h-4 w-4 text-amber-500" />
+                        <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
                       ) : (
-                        <UserCheck className="h-4 w-4 text-primary" />
+                        <UserCheck className="h-3.5 w-3.5 text-primary" />
                       )}
                       <span>{u.username}</span>
                     </td>
-                    <td className="p-3">
-                      <Badge variant={u.role === 'su' ? 'default' : u.role === 'admin' ? 'secondary' : 'outline'}>
+                    <td className="py-2.5 px-3 font-mono">
+                      <Badge variant={u.role === 'su' ? 'default' : u.role === 'admin' ? 'secondary' : 'outline'} className="text-[10px] uppercase font-mono">
                         {u.role}
                       </Badge>
                     </td>
-                    <td className="p-3 font-mono text-muted-foreground text-[11px]">{u.id}</td>
-                    <td className="p-3 text-muted-foreground">{formatDate(u.created_at)}</td>
-                    <td className="p-3 pr-4 text-right">
+                    <td className="py-2.5 px-3 text-muted-foreground text-[11px] font-mono">{u.id}</td>
+                    <td className="py-2.5 px-3 text-muted-foreground text-[11px]">{formatDate(u.created_at)}</td>
+                    <td className="py-2.5 px-4 text-right">
                       {u.role !== 'su' && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
+                        <button
                           onClick={() => handleDeleteUser(u.id, u.username)}
-                          className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                          className="h-6 w-6 rounded inline-flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          title="Delete User"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                          <Trash2 className="h-3 w-3" />
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -142,27 +150,27 @@ export const UsersPage: React.FC = () => {
       )}
 
       {/* Create User Modal */}
-      <Dialog open={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Provision New User Account">
-        <form onSubmit={handleCreateUser} className="space-y-4">
+      <Dialog open={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Provision New Account" className="max-w-md">
+        <form onSubmit={handleCreateUser} className="space-y-3.5">
           {createError && (
-            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+            <div className="p-2.5 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
               {createError}
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase text-muted-foreground">Username</label>
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium uppercase text-muted-foreground tracking-wider">Username</label>
             <Input
               type="text"
-              placeholder="e.g. john_developer"
+              placeholder="e.g. backend_service"
               value={newUsername}
               onChange={(e) => setNewUsername(e.target.value)}
               required
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase text-muted-foreground">Password</label>
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium uppercase text-muted-foreground tracking-wider">Password</label>
             <Input
               type="password"
               placeholder="Enter secure password"
@@ -172,23 +180,23 @@ export const UsersPage: React.FC = () => {
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase text-muted-foreground">Role</label>
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium uppercase text-muted-foreground tracking-wider">Role</label>
             <select
               value={newRole}
               onChange={(e) => setNewRole(e.target.value as Role)}
-              className="w-full h-9 rounded-md border bg-background px-3 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full h-8 rounded-md border border-border/80 bg-background/50 px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             >
-              <option value="user">User (Standard Access)</option>
-              <option value="admin">Admin (Project Owner)</option>
+              <option value="user" className="bg-card text-foreground">User (Standard Access)</option>
+              <option value="admin" className="bg-card text-foreground">Admin (Project Owner)</option>
             </select>
           </div>
 
           <div className="pt-2 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Create User</Button>
+            <Button type="submit" size="sm">Create Account</Button>
           </div>
         </form>
       </Dialog>

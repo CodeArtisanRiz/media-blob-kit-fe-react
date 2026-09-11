@@ -22,26 +22,26 @@ export function Dialog({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md animate-in fade-in-0 duration-200">
       <div
         className={cn(
-          "relative w-full max-w-lg rounded-xl border bg-card p-6 text-card-foreground shadow-lg animate-in zoom-in-95",
+          "relative w-full max-w-lg rounded-xl border border-white/[0.1] bg-card/95 p-6 text-card-foreground shadow-linear-elevated backdrop-blur-xl animate-in zoom-in-95 duration-200",
           className
         )}
       >
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-white/[0.08] hover:text-foreground focus:outline-none"
         >
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </button>
 
         {title && (
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold leading-none tracking-tight">{title}</h2>
+          <div className="mb-5">
+            <h2 className="text-base font-semibold leading-none tracking-tight text-foreground">{title}</h2>
             {description && (
-              <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
+              <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">{description}</p>
             )}
           </div>
         )}

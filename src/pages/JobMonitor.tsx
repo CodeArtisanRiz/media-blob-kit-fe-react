@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { api, API_BASE_URL } from '@/api/client'
 import type { JobItem } from '@/types/api'
 import { formatDate } from '@/lib/utils'
-import { Card, CardHeader, CardContent } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
@@ -76,132 +76,157 @@ export const JobMonitor: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1 border-b border-border/60">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold tracking-tight">Live Job Monitor</h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">Live Job Monitor</h2>
             {sseConnected ? (
-              <Badge variant="success" className="gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <Badge variant="success" className="gap-1 px-2 py-0.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 SSE Stream Active
               </Badge>
             ) : (
-              <Badge variant="outline" className="text-muted-foreground">
+              <Badge variant="secondary" className="text-muted-foreground gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
                 Polling Fallback
               </Badge>
             )}
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Real-time background worker task queue and variant rendering status
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Real-time asynchronous image processing queue and background variant pipelines
           </p>
         </div>
 
-        <Button variant="outline" size="sm" onClick={fetchJobs} className="gap-2">
-          <RefreshCw className="h-4 w-4" />
-          <span>Refresh</span>
+        <Button variant="outline" size="sm" onClick={fetchJobs} className="gap-1.5 self-start sm:self-auto">
+          <RefreshCw className="h-3.5 w-3.5" />
+          <span>Refresh Queue</span>
         </Button>
       </div>
 
       {/* Stats Metric Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-            <span className="text-xs font-semibold uppercase text-muted-foreground">Pending</span>
-            <Clock className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold">{pendingCount}</div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Jobs waiting in queue</p>
-          </CardContent>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Pending</span>
+            <Clock className="h-3.5 w-3.5 text-amber-400" />
+          </div>
+          <div className="mt-2">
+            <div className="text-xl font-bold font-mono tracking-tight">{pendingCount}</div>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Jobs awaiting worker pickup</p>
+          </div>
         </Card>
 
-        <Card>
-          <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-            <span className="text-xs font-semibold uppercase text-muted-foreground">Processing</span>
-            <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold">{processingCount}</div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Currently executing tasks</p>
-          </CardContent>
+        <Card className="p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Processing</span>
+            <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
+          </div>
+          <div className="mt-2">
+            <div className="text-xl font-bold font-mono tracking-tight">{processingCount}</div>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Currently transforming</p>
+          </div>
         </Card>
 
-        <Card>
-          <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-            <span className="text-xs font-semibold uppercase text-muted-foreground">Completed</span>
-            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold">{completedCount}</div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Successfully finished</p>
-          </CardContent>
+        <Card className="p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Completed</span>
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+          </div>
+          <div className="mt-2">
+            <div className="text-xl font-bold font-mono tracking-tight">{completedCount}</div>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Variants rendered & synced</p>
+          </div>
         </Card>
 
-        <Card>
-          <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-            <span className="text-xs font-semibold uppercase text-muted-foreground">Failed</span>
-            <XCircle className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold">{failedCount}</div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Errors requiring inspection</p>
-          </CardContent>
+        <Card className="p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Failed</span>
+            <XCircle className="h-3.5 w-3.5 text-destructive" />
+          </div>
+          <div className="mt-2">
+            <div className="text-xl font-bold font-mono tracking-tight">{failedCount}</div>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Pipeline processing errors</p>
+          </div>
         </Card>
       </div>
 
       {/* Status Filter Tabs */}
-      <div className="flex gap-2 border-b pb-2">
-        {(['all', 'pending', 'processing', 'completed', 'failed'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold uppercase transition-colors ${
-              activeTab === tab
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
+      <div className="flex items-center gap-1.5 border-b border-border/60 pb-2">
+        {(['all', 'pending', 'processing', 'completed', 'failed'] as const).map((tab) => {
+          const count =
+            tab === 'all'
+              ? jobs.length
+              : tab === 'pending'
+              ? pendingCount
+              : tab === 'processing'
+              ? processingCount
+              : tab === 'completed'
+              ? completedCount
+              : failedCount
+
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium uppercase tracking-wider transition-all ${
+                activeTab === tab
+                  ? 'bg-secondary text-foreground border border-border shadow-sm font-semibold'
+                  : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground border border-transparent'
+              }`}
+            >
+              <span>{tab}</span>
+              <span className="text-[9px] font-mono opacity-70">({count})</span>
+            </button>
+          )
+        })}
       </div>
 
       {/* Jobs Table */}
       {loading ? (
-        <div className="py-12 text-center text-sm text-muted-foreground">Loading job stream...</div>
+        <div className="py-20 text-center text-xs text-muted-foreground flex items-center justify-center gap-2 font-mono">
+          <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+          Streaming queue telemetry...
+        </div>
       ) : filteredJobs.length === 0 ? (
-        <Card className="p-12 text-center text-muted-foreground text-sm">
-          No jobs found for status filter: <span className="font-semibold uppercase text-foreground">{activeTab}</span>
+        <Card className="p-12 text-center border-dashed border-border/80 bg-transparent text-muted-foreground text-xs">
+          No tasks found matching filter: <span className="font-semibold uppercase text-foreground">{activeTab}</span>
         </Card>
       ) : (
-        <div className="border rounded-xl bg-card overflow-hidden shadow-sm">
+        <div className="border border-border/80 rounded-lg bg-card/60 overflow-hidden shadow-sm backdrop-blur-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-muted/50 border-b font-semibold uppercase text-muted-foreground">
+            <table className="w-full text-left text-xs font-mono">
+              <thead className="bg-background/80 border-b border-border/70 text-[10px] font-medium uppercase text-muted-foreground tracking-wider">
                 <tr>
-                  <th className="p-3 pl-4">Job ID</th>
-                  <th className="p-3">File ID</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">Updated At</th>
-                  <th className="p-3 pr-4 text-right">Payload</th>
+                  <th className="py-2.5 px-4">Job ID</th>
+                  <th className="py-2.5 px-3">File ID</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3 font-sans">Timestamp</th>
+                  <th className="py-2.5 px-4 text-right">Details</th>
                 </tr>
               </thead>
-              <tbody className="divide-y font-mono">
+              <tbody className="divide-y divide-border/40 text-xs">
                 {filteredJobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="p-3 pl-4 font-medium text-foreground">{job.id.slice(0, 8)}...</td>
-                    <td className="p-3 text-muted-foreground">{job.file_id.slice(0, 8)}...</td>
-                    <td className="p-3">
+                  <tr key={job.id} className="hover:bg-white/[0.03] transition-colors group">
+                    <td className="py-2.5 px-4 font-medium text-foreground">
+                      <span className="text-primary">{job.id.slice(0, 8)}</span>
+                      <span className="text-muted-foreground/60">{job.id.slice(8, 14)}...</span>
+                    </td>
+                    <td className="py-2.5 px-3 text-muted-foreground">
+                      {job.file_id ? `${job.file_id.slice(0, 10)}...` : '-'}
+                    </td>
+                    <td className="py-2.5 px-3 font-sans">
                       {job.status === 'completed' && <Badge variant="success">Completed</Badge>}
                       {job.status === 'processing' && <Badge variant="warning">Processing</Badge>}
                       {job.status === 'pending' && <Badge variant="secondary">Pending</Badge>}
                       {job.status === 'failed' && <Badge variant="destructive">Failed</Badge>}
                     </td>
-                    <td className="p-3 text-muted-foreground">{formatDate(job.updated_at)}</td>
-                    <td className="p-3 pr-4 text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setSelectedJob(job)} className="h-7 text-xs gap-1">
-                        <Eye className="h-3.5 w-3.5" />
+                    <td className="py-2.5 px-3 text-muted-foreground font-sans text-[11px]">
+                      {formatDate(job.updated_at)}
+                    </td>
+                    <td className="py-2.5 px-4 text-right">
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedJob(job)} className="h-6 text-[11px] gap-1 font-sans">
+                        <Eye className="h-3 w-3" />
                         <span>Payload</span>
                       </Button>
                     </td>
@@ -214,19 +239,31 @@ export const JobMonitor: React.FC = () => {
       )}
 
       {/* Payload Modal */}
-      <Dialog open={!!selectedJob} onClose={() => setSelectedJob(null)} title={`Job Details - ${selectedJob?.id}`} className="max-w-xl">
+      <Dialog open={!!selectedJob} onClose={() => setSelectedJob(null)} title={`Job Telemetry - ${selectedJob?.id}`} className="max-w-xl">
         {selectedJob && (
           <div className="space-y-4 text-xs font-mono">
-            <div>
-              <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1">Job Status</p>
-              <Badge variant={selectedJob.status === 'completed' ? 'success' : selectedJob.status === 'failed' ? 'destructive' : 'secondary'}>
-                {selectedJob.status}
-              </Badge>
+            <div className="flex items-center justify-between p-3 rounded-lg border border-border/80 bg-background/50 font-sans">
+              <div>
+                <p className="text-[10px] uppercase font-semibold text-muted-foreground">Current State</p>
+                <div className="mt-1">
+                  <Badge variant={selectedJob.status === 'completed' ? 'success' : selectedJob.status === 'failed' ? 'destructive' : 'secondary'}>
+                    {selectedJob.status}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <p className="text-[10px] uppercase font-semibold text-muted-foreground">Updated At</p>
+                <p className="text-xs text-foreground font-mono mt-0.5">{formatDate(selectedJob.updated_at)}</p>
+              </div>
             </div>
 
             <div>
-              <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1">Payload JSON</p>
-              <pre className="p-3 rounded-lg border bg-muted/40 overflow-x-auto text-[11px]">
+              <div className="flex items-center justify-between mb-1.5 font-sans">
+                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">Payload Parameters</p>
+                <span className="text-[10px] text-muted-foreground font-mono">JSON</span>
+              </div>
+              <pre className="p-3.5 rounded-lg border border-border/80 bg-background/70 overflow-x-auto text-[11px] leading-relaxed text-foreground/90 font-mono shadow-inner">
                 {JSON.stringify(selectedJob.payload, null, 2)}
               </pre>
             </div>

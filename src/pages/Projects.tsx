@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Key, Trash2, Copy, Check, SlidersHorizontal, RefreshCw, CheckSquare, Square, AlertTriangle } from 'lucide-react'
+import { Plus, Key, Trash2, Copy, Check, SlidersHorizontal, RefreshCw, CheckSquare, Square, AlertTriangle, Layers } from 'lucide-react'
 
 export const Projects: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([])
@@ -159,89 +159,103 @@ export const Projects: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1 border-b border-border/60">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Projects</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Manage multi-tenant media projects and configure image variant transformation rules
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">Projects</h2>
+            <Badge variant="secondary" className="font-mono">{projects.length}</Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Manage multi-tenant storage buckets, API keys, and image transformation presets
           </p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
+        <Button onClick={() => setIsCreateOpen(true)} className="gap-1.5 self-start sm:self-auto">
+          <Plus className="h-3.5 w-3.5" />
           <span>New Project</span>
         </Button>
       </div>
 
       {loading ? (
-        <div className="py-12 text-center text-sm text-muted-foreground">Loading projects...</div>
+        <div className="py-20 text-center text-xs text-muted-foreground flex items-center justify-center gap-2 font-mono">
+          <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+          Loading projects...
+        </div>
       ) : projects.length === 0 ? (
-        <Card className="p-12 text-center">
-          <h3 className="text-lg font-semibold">No Projects Created</h3>
-          <p className="text-sm text-muted-foreground mt-1 mb-4">Create your first project to start generating API keys and uploading media blobs.</p>
-          <Button onClick={() => setIsCreateOpen(true)}>Create Project</Button>
+        <Card className="p-12 text-center border-dashed border-border/80 bg-transparent">
+          <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3 border border-primary/20">
+            <Layers className="h-5 w-5" />
+          </div>
+          <h3 className="text-sm font-semibold text-foreground">No Projects Configured</h3>
+          <p className="text-xs text-muted-foreground mt-1 mb-4 max-w-sm mx-auto">Create a project to obtain scoped API keys and define automatic image resizing pipelines.</p>
+          <Button onClick={() => setIsCreateOpen(true)} size="sm">Create First Project</Button>
         </Card>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => {
             const variantCount = Object.keys(project.settings.variants || {}).length
             return (
-              <Card key={project.id} className="flex flex-col justify-between hover:shadow-md transition-shadow border-border/80">
+              <Card key={project.id} className="flex flex-col justify-between group">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <CardTitle>{project.name}</CardTitle>
-                      <CardDescription className="line-clamp-2 mt-1">{project.description || 'No description provided'}</CardDescription>
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="truncate group-hover:text-primary transition-colors">{project.name}</CardTitle>
+                      <CardDescription className="line-clamp-2 mt-1 min-h-[32px]">{project.description || 'No description provided'}</CardDescription>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Badge variant="secondary">{variantCount} Variants</Badge>
-                      <Button
-                        variant="ghost"
-                        size="icon"
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Badge variant="secondary" className="font-mono text-[10px]">
+                        {variantCount} {variantCount === 1 ? 'variant' : 'variants'}
+                      </Badge>
+                      <button
                         onClick={() => {
                           setProjectToDelete(project)
                           setIsSoftDelete(true)
                         }}
-                        className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                        className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                         title="Delete Project"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                        <Trash2 className="h-3 w-3" />
+                      </button>
                     </div>
                   </div>
                 </CardHeader>
 
-                <CardContent className="space-y-3 pt-0">
-                  <div className="text-xs text-muted-foreground space-y-1">
-                    <p>Created: <span className="font-medium text-foreground">{formatDate(project.created_at)}</span></p>
-                    <p>ID: <span className="font-mono text-[11px] text-muted-foreground">{project.id}</span></p>
+                <CardContent className="space-y-2.5 pt-0">
+                  <div className="text-[11px] text-muted-foreground space-y-0.5 font-mono">
+                    <p className="truncate">ID: <span className="text-foreground/80">{project.id}</span></p>
+                    <p>Created: <span className="text-foreground/80 font-sans">{formatDate(project.created_at)}</span></p>
                   </div>
 
-                  <div className="rounded-lg bg-muted/50 p-2.5 text-xs font-mono border">
-                    <p className="font-semibold text-muted-foreground uppercase text-[10px] mb-1">Defined Variants</p>
+                  <div className="rounded-md bg-background/50 p-2 text-xs font-mono border border-border/60">
+                    <p className="font-semibold text-muted-foreground uppercase text-[9px] mb-1 tracking-wider">Configured Variants</p>
                     <div className="flex flex-wrap gap-1">
-                      {Object.keys(project.settings.variants || {}).map((v) => (
-                        <span key={v} className="bg-background px-2 py-0.5 rounded border text-[11px]">
-                          {v}
-                        </span>
-                      ))}
+                      {Object.keys(project.settings.variants || {}).length === 0 ? (
+                        <span className="text-[10px] text-muted-foreground italic">None configured</span>
+                      ) : (
+                        Object.keys(project.settings.variants || {}).map((v) => (
+                          <span key={v} className="bg-card px-1.5 py-0.5 rounded border border-border/70 text-[10px] text-foreground/90">
+                            {v}
+                          </span>
+                        ))
+                      )}
                     </div>
                   </div>
                 </CardContent>
 
-                <CardFooter className="pt-2 border-t flex items-center justify-between gap-2">
-                  <div className="flex gap-1">
-                    <Button variant="outline" size="sm" onClick={() => handleOpenKeys(project)} title="Manage API Keys">
-                      <Key className="h-3.5 w-3.5" />
-                      <span>Keys</span>
+                <CardFooter className="pt-2 border-t border-border/60 flex items-center justify-between gap-2 bg-background/20">
+                  <div className="flex gap-1.5">
+                    <Button variant="outline" size="sm" onClick={() => handleOpenKeys(project)} title="Manage API Keys" className="gap-1 text-[11px]">
+                      <Key className="h-3 w-3 text-muted-foreground" />
+                      <span>API Keys</span>
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleOpenSettings(project)} title="Variant Settings">
-                      <SlidersHorizontal className="h-3.5 w-3.5" />
-                      <span>Settings</span>
+                    <Button variant="outline" size="sm" onClick={() => handleOpenSettings(project)} title="Variant Settings" className="gap-1 text-[11px]">
+                      <SlidersHorizontal className="h-3 w-3 text-muted-foreground" />
+                      <span>Presets</span>
                     </Button>
                   </div>
 
-                  <Button variant="ghost" size="icon" onClick={() => handleSyncVariants(project.id)} title="Regenerate All Variants">
-                    <RefreshCw className="h-3.5 w-3.5" />
+                  <Button variant="ghost" size="icon" onClick={() => handleSyncVariants(project.id)} title="Regenerate All Variants" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                    <RefreshCw className="h-3 w-3" />
                   </Button>
                 </CardFooter>
               </Card>
@@ -250,20 +264,20 @@ export const Projects: React.FC = () => {
         </div>
       )}
 
-      {/* Delete Project Modal with Soft/Hard option */}
-      <Dialog open={!!projectToDelete} onClose={() => setProjectToDelete(null)} title={`Delete Project - ${projectToDelete?.name}`}>
+      {/* Delete Project Modal */}
+      <Dialog open={!!projectToDelete} onClose={() => setProjectToDelete(null)} title={`Delete Project`}>
         <div className="space-y-4">
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs">
-            <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold text-amber-700 dark:text-amber-400">Confirm Project Deletion</p>
-              <p className="mt-0.5 text-muted-foreground">Choose whether to soft-delete (recoverable within 30 days) or permanently purge immediately.</p>
+              <p className="font-semibold text-amber-400">Confirm Deletion of "{projectToDelete?.name}"</p>
+              <p className="mt-0.5 text-muted-foreground text-[11px]">Select deletion safety mode before confirming.</p>
             </div>
           </div>
 
-          <label
+          <div
             onClick={() => setIsSoftDelete(!isSoftDelete)}
-            className="flex items-start gap-2.5 p-3 rounded-lg border bg-muted/30 cursor-pointer select-none"
+            className="flex items-start gap-2.5 p-3 rounded-lg border border-border/80 bg-background/50 cursor-pointer select-none transition-colors hover:border-border"
           >
             {isSoftDelete ? (
               <CheckSquare className="h-4 w-4 text-primary shrink-0 mt-0.5" />
@@ -271,21 +285,22 @@ export const Projects: React.FC = () => {
               <Square className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             )}
             <div className="text-xs">
-              <span className="font-semibold text-foreground">Soft Delete (Pre-checked / Safe)</span>
-              <p className="text-muted-foreground text-[11px] mt-0.5">
+              <span className="font-medium text-foreground">Soft Delete (Safe Mode)</span>
+              <p className="text-muted-foreground text-[11px] mt-0.5 leading-relaxed">
                 {isSoftDelete
-                  ? 'Retains project assets for 30 days before auto-cleanup. Can be restored anytime via API.'
-                  : '⚠️ UNCHECKED: Hard Delete selected! All S3 original files, variants, and DB records will be permanently purged immediately.'}
+                  ? 'Retains original assets and variants for 30 days before background cleanup. Can be restored anytime.'
+                  : '⚠️ UNCHECKED: Hard Delete! Original assets, all S3 variant objects, and DB records will be permanently destroyed immediately.'}
               </p>
             </div>
-          </label>
+          </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setProjectToDelete(null)} disabled={deleting}>
+            <Button variant="outline" size="sm" onClick={() => setProjectToDelete(null)} disabled={deleting}>
               Cancel
             </Button>
             <Button
               variant={isSoftDelete ? 'default' : 'destructive'}
+              size="sm"
               onClick={handleConfirmDeleteProject}
               disabled={deleting}
             >
@@ -297,43 +312,43 @@ export const Projects: React.FC = () => {
 
       {/* Create Project Modal */}
       <Dialog open={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Create New Project">
-        <form onSubmit={handleCreateProject} className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase text-muted-foreground">Project Name</label>
+        <form onSubmit={handleCreateProject} className="space-y-3.5">
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium uppercase text-muted-foreground tracking-wider">Project Name</label>
             <Input
               type="text"
-              placeholder="e.g. Mobile Application Assets"
+              placeholder="e.g. Mobile Application Media"
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
               required
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase text-muted-foreground">Description</label>
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium uppercase text-muted-foreground tracking-wider">Description</label>
             <Input
               type="text"
-              placeholder="Brief description of this project"
+              placeholder="Brief description of usage"
               value={newProjectDesc}
               onChange={(e) => setNewProjectDesc(e.target.value)}
             />
           </div>
 
           <div className="pt-2 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-            <Button type="submit">Create Project</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+            <Button type="submit" size="sm">Create Project</Button>
           </div>
         </form>
       </Dialog>
 
       {/* API Keys Modal */}
-      <Dialog open={isKeyModalOpen} onClose={() => setIsKeyModalOpen(false)} title={`API Keys - ${selectedProject?.name}`} className="max-w-xl">
+      <Dialog open={isKeyModalOpen} onClose={() => setIsKeyModalOpen(false)} title={`API Keys - ${selectedProject?.name}`} className="max-w-md">
         <div className="space-y-4">
           {createdKeySecret && (
-            <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 space-y-2">
-              <p className="text-xs font-semibold text-emerald-600">New Secret Key Generated!</p>
-              <div className="flex items-center gap-2">
-                <Input type="text" readOnly value={createdKeySecret} className="font-mono text-xs bg-background" />
+            <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 space-y-1.5">
+              <p className="text-xs font-semibold text-emerald-400">New Secret Key Generated</p>
+              <div className="flex items-center gap-1.5">
+                <Input type="text" readOnly value={createdKeySecret} className="font-mono text-xs bg-background/80" />
                 <Button
                   size="sm"
                   variant="outline"
@@ -342,39 +357,40 @@ export const Projects: React.FC = () => {
                     setCopiedKey(true)
                     setTimeout(() => setCopiedKey(false), 2000)
                   }}
+                  className="shrink-0"
                 >
-                  {copiedKey ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedKey ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
                 </Button>
               </div>
-              <p className="text-[11px] text-muted-foreground">Copy this key now. It will not be shown again.</p>
+              <p className="text-[10px] text-muted-foreground">Copy this key now. It is hashed and cannot be shown again.</p>
             </div>
           )}
 
           <form onSubmit={handleCreateKey} className="flex gap-2">
             <Input
               type="text"
-              placeholder="Key label (e.g. Upload Service)"
+              placeholder="Key label (e.g. Production Upload Service)"
               value={newKeyName}
               onChange={(e) => setNewKeyName(e.target.value)}
               required
             />
-            <Button type="submit" className="shrink-0">Create Key</Button>
+            <Button type="submit" size="sm" className="shrink-0">Create Key</Button>
           </form>
 
           <div className="space-y-2">
-            <h4 className="text-xs font-semibold uppercase text-muted-foreground">Active API Keys</h4>
+            <h4 className="text-[11px] font-medium uppercase text-muted-foreground tracking-wider">Active Scoped Keys</h4>
             {apiKeys.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-2">No API keys generated yet.</p>
+              <p className="text-xs text-muted-foreground py-2 italic">No active API keys yet.</p>
             ) : (
-              <div className="space-y-2 max-h-60 overflow-y-auto">
+              <div className="space-y-1.5 max-h-56 overflow-y-auto">
                 {apiKeys.map((k) => (
-                  <div key={k.id} className="flex items-center justify-between p-3 rounded-lg border bg-card text-xs">
+                  <div key={k.id} className="flex items-center justify-between p-2.5 rounded-md border border-border/70 bg-card text-xs">
                     <div>
                       <p className="font-medium text-foreground">{k.name}</p>
-                      <p className="text-muted-foreground text-[11px]">Created {formatDate(k.created_at)}</p>
+                      <p className="text-muted-foreground font-mono text-[10px]">{formatDate(k.created_at)}</p>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteKey(k.id)} className="text-destructive hover:bg-destructive/10">
-                      <Trash2 className="h-3.5 w-3.5" />
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteKey(k.id)} className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 ))}
@@ -386,13 +402,13 @@ export const Projects: React.FC = () => {
 
       {/* Settings / Variant Rules Modal */}
       <Dialog open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} title={`Variant Presets - ${selectedProject?.name}`} className="max-w-xl">
-        <div className="space-y-4">
-          <p className="text-xs text-muted-foreground">
-            Configure image variant rules for this project in JSON format. Each variant can define dimensions (`width`, `height`), fit mode (`contain`, `cover`, `fill`), output format (`webp`, `jpg`, `avif`, `png`), and JPEG `quality` (1-100).
+        <div className="space-y-3.5">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Define image variant transformations in JSON format (`width`, `height`, `fit: cover|contain|fill`, `format: webp|jpg|avif|png`, and `quality: 1-100`).
           </p>
 
           {settingsError && (
-            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+            <div className="p-2.5 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
               {settingsError}
             </div>
           )}
@@ -400,13 +416,13 @@ export const Projects: React.FC = () => {
           <textarea
             value={variantsJson}
             onChange={(e) => setVariantsJson(e.target.value)}
-            className="w-full h-56 font-mono text-xs p-3 rounded-lg border bg-muted/40 focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full h-60 font-mono text-xs p-3 rounded-md border border-border/80 bg-background/50 text-foreground focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed"
             placeholder="{}"
           />
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setIsSettingsOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveSettings}>Save Configuration</Button>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="outline" size="sm" onClick={() => setIsSettingsOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleSaveSettings}>Save Configuration</Button>
           </div>
         </div>
       </Dialog>
