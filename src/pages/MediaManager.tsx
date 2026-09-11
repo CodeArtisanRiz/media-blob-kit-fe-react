@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { api } from '@/api/client'
+import { api, API_BASE_URL } from '@/api/client'
 import type { FileItem, Project, PaginatedResponse } from '@/types/api'
 import { formatDate, formatBytes } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
@@ -192,7 +192,7 @@ export const MediaManager: React.FC = () => {
                   )}
 
                   <a
-                    href={`/api/files/${file.id}/content`}
+                    href={`${API_BASE_URL}/files/${file.id}/content`}
                     target="_blank"
                     rel="noreferrer"
                     className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium gap-1.5 backdrop-blur-[2px]"

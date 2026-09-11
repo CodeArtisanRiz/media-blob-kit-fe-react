@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { api } from '@/api/client'
+import { api, API_BASE_URL } from '@/api/client'
 import type { JobItem } from '@/types/api'
 import { formatDate } from '@/lib/utils'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
@@ -36,7 +36,7 @@ export const JobMonitor: React.FC = () => {
 
     const token = localStorage.getItem('access_token')
     const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : ''
-    const sseUrl = `${import.meta.env.VITE_API_URL || '/api'}/admin/jobs/events${tokenQuery}`
+    const sseUrl = `${API_BASE_URL}/admin/jobs/events${tokenQuery}`
     const es = new EventSource(sseUrl)
     es.onopen = () => setSseConnected(true)
     es.onerror = () => setSseConnected(false)
