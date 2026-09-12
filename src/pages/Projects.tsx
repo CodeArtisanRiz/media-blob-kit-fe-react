@@ -1023,26 +1023,32 @@ export const Projects: React.FC = () => {
               </h4>
 
               <div className="flex items-center gap-2">
-                {/* Add from Presets */}
+                {/* Add Variant Dropdown (Presets + Custom) */}
                 <div className="relative">
                   <Button
                     variant="outline"
                     size="sm"
                     className="gap-1 text-[11px]"
-                    onClick={() => setShowPresetsDropdown(!showPresetsDropdown)}
+                    onClick={() => {
+                      setShowPresetsDropdown(!showPresetsDropdown)
+                      setCustomVariantName('')
+                    }}
                   >
                     <Plus className="h-3 w-3" />
-                    <span>Preset</span>
+                    <span>Add Variant</span>
                     <ChevronDown className="h-3 w-3" />
                   </Button>
 
                   {showPresetsDropdown && (
-                    <div className="absolute right-0 top-full mt-1 z-50 w-64 max-h-64 overflow-y-auto rounded-lg border border-border/80 bg-card shadow-2xl p-1 animate-in fade-in-0 slide-in-from-top-1 duration-150">
+                    <div className="absolute right-0 top-full mt-1 z-50 w-72 max-h-80 overflow-y-auto rounded-lg border border-border/80 bg-card shadow-2xl p-1 animate-in fade-in-0 slide-in-from-top-1 duration-150">
+                      <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Preset Sizes
+                      </div>
                       {VARIANT_PRESETS.map((preset) => (
                         <button
                           key={preset.name}
                           onClick={() => handleAddPreset(preset)}
-                          className="w-full text-left px-3 py-2 rounded-md text-xs hover:bg-primary/10 transition-colors flex items-center justify-between gap-2"
+                          className="w-full text-left px-2.5 py-1.5 rounded-md text-xs hover:bg-primary/10 transition-colors flex items-center justify-between gap-2"
                         >
                           <span className="font-medium text-foreground">{preset.label}</span>
                           <span className="text-[10px] font-mono text-muted-foreground">
@@ -1050,38 +1056,52 @@ export const Projects: React.FC = () => {
                           </span>
                         </button>
                       ))}
+
+                      <div className="my-1 border-t border-border/60" />
+
+                      <div className="p-1.5 space-y-1.5">
+                        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">
+                          Custom Variant
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            type="text"
+                            placeholder="e.g. hero-banner"
+                            value={customVariantName}
+                            onChange={(e) => setCustomVariantName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                handleAddCustomVariant()
+                                setShowPresetsDropdown(false)
+                              }
+                            }}
+                            className="h-7 text-xs flex-1"
+                            autoFocus
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              handleAddCustomVariant()
+                              setShowPresetsDropdown(false)
+                            }}
+                            disabled={!customVariantName.trim()}
+                            className="h-7 px-2 text-xs shrink-0"
+                          >
+                            Add
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Add Custom Variant */}
-            <div className="flex gap-2">
-              <Input
-                type="text"
-                placeholder="Custom variant name (e.g. hero-banner)"
-                value={customVariantName}
-                onChange={(e) => setCustomVariantName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomVariant() } }}
-                className="h-8 text-xs flex-1"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleAddCustomVariant}
-                disabled={!customVariantName.trim()}
-                className="shrink-0 gap-1 text-[11px]"
-              >
-                <Plus className="h-3 w-3" />
-                <span>Add</span>
-              </Button>
-            </div>
-
             {/* Variant Cards */}
             {Object.keys(editVariants).length === 0 ? (
               <div className="p-8 text-center rounded-lg border border-dashed border-border/80 text-xs text-muted-foreground italic">
-                No variants configured. Add a preset or create a custom variant above.
+                No variants configured. Select a preset or create a custom variant from the "Add Variant" dropdown above.
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 max-h-[400px] overflow-y-auto pr-1">
