@@ -387,8 +387,16 @@ export const Projects: React.FC = () => {
   }
 
   const handleRenameVariant = (oldName: string, newName: string) => {
-    if (oldName === newName) return
+    if (oldName === newName || !newName.trim()) return
     setEditVariants((prev) => {
+      if (prev[newName]) {
+        toast({
+          title: 'Name Conflict',
+          description: `A variant named "${newName}" already exists.`,
+          variant: 'destructive',
+        })
+        return prev
+      }
       const updated = { ...prev }
       const config = updated[oldName]
       delete updated[oldName]
