@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { LoginResponse } from '@/types/api'
+import type { RefreshResponse } from '@/types/api'
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -27,11 +27,14 @@ api.interceptors.response.use(
       const refreshToken = localStorage.getItem('refresh_token')
       if (refreshToken) {
         try {
-          const res = await axios.post<LoginResponse>(`${API_BASE_URL}/auth/refresh`, {
+          const res = await axios.post<RefreshResponse>(`${API_BASE_URL}/auth/refresh`, {
             refresh_token: refreshToken,
           })
-          const { access_token } = res.data
+          const { access_token, refresh_token: new_refresh_token } = res.data
           localStorage.setItem('access_token', access_token)
+          if (new_refresh_token) {
+            localStorage.setItem('refresh_token', new_refresh_token)
+          }
           originalRequest.headers.Authorization = `Bearer ${access_token}`
           return api(originalRequest)
         } catch {

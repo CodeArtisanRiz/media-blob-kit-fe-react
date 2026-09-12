@@ -121,7 +121,7 @@ export const MediaManager: React.FC = () => {
       const formData = new FormData()
       formData.append('file', selectedFile)
 
-      const isImage = selectedFile.type.startsWith('image/') || selectedFile.name.endsWith('.svg')
+      const isImage = selectedFile.type.startsWith('image/') || /\.(svg|webp|avif|png|jpe?g|gif|bmp|tiff?)$/i.test(selectedFile.name)
       const endpoint = isImage ? '/upload/image' : '/upload/file'
 
       const selectedVariantNames = Object.entries(selectedVariants)
@@ -355,7 +355,7 @@ export const MediaManager: React.FC = () => {
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {files.map((file) => {
-              const isImg = file.mime_type.startsWith('image/') || file.filename.endsWith('.svg')
+              const isImg = file.mime_type.startsWith('image/') || /\.(svg|webp|avif|png|jpe?g|gif|bmp|tiff?)$/i.test(file.filename)
               const fullUrl = file.url.startsWith('http') ? file.url : `${API_BASE_URL}${file.url}`
               const isSelected = selectedFileIds.has(file.id)
 
@@ -640,7 +640,7 @@ export const MediaManager: React.FC = () => {
           )}
 
           {/* Per-Upload Variant Checklist */}
-          {selectedFile?.type.startsWith('image/') && activeProject?.settings.variants && (
+          {(selectedFile?.type.startsWith('image/') || (selectedFile && /\.(svg|webp|avif|png|jpe?g|gif|bmp|tiff?)$/i.test(selectedFile.name))) && activeProject?.settings.variants && (
             <div className="space-y-2 p-3 rounded-lg border border-border/80 bg-background/40">
               <label className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider block">
                 Variant Transformation Checklist
