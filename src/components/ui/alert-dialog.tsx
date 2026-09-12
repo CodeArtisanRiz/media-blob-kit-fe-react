@@ -32,7 +32,7 @@ export function AlertDialog({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in-0 duration-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in-0 duration-200">
       <div
         className="relative w-full max-w-md rounded-xl border border-white/[0.1] bg-[#0f1011] p-6 text-card-foreground shadow-2xl backdrop-blur-2xl animate-in zoom-in-95 duration-200"
         role="alertdialog"
