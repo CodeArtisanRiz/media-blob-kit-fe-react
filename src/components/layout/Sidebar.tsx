@@ -27,7 +27,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { to: '/jobs', label: 'Live Job Monitor', icon: Activity, badge: 'Live' },
   ]
 
-  if (user?.role === 'su' || user?.role === 'admin') {
+  const role = (user?.role || '').toLowerCase()
+  if (role === 'su' || role === 'admin') {
     mainNav.push({ to: '/users', label: 'User Management', icon: Users, badge: null })
   }
 

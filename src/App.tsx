@@ -69,7 +69,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
     return <Navigate to="/login" replace />
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  const userRole = (user.role || '').toLowerCase()
+  if (allowedRoles && !allowedRoles.map((r) => r.toLowerCase()).includes(userRole)) {
     return <Navigate to="/projects" replace />
   }
 
