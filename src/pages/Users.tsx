@@ -8,12 +8,19 @@ import { Input } from '@/components/ui/input'
 import { Dialog } from '@/components/ui/dialog'
 import { AlertDialog } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
+import { Pagination } from '@/components/ui/pagination'
 import { Plus, Trash2, ShieldCheck, UserCheck, Edit2 } from 'lucide-react'
 
 export const UsersPage: React.FC = () => {
   const { toast } = useToast()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Pagination State
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [totalItems, setTotalItems] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
 
   // Create User Modal
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -35,15 +42,18 @@ export const UsersPage: React.FC = () => {
   const [deletingUser, setDeletingUser] = useState(false)
 
   const fetchUsers = useCallback(async () => {
+    setLoading(true)
     try {
-      const res = await api.get<PaginatedResponse<User>>('/users')
+      const res = await api.get<PaginatedResponse<User>>(`/users?page=${page}&limit=${pageSize}`)
       setUsers(res.data.data)
+      setTotalItems(res.data.total_items)
+      setTotalPages(res.data.total_pages)
     } catch (e) {
       console.error(e)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [page, pageSize])
 
   useEffect(() => {
     fetchUsers()
@@ -167,7 +177,7 @@ export const UsersPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold tracking-tight text-foreground">User Management</h2>
             <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/60">
-              {users.length} accounts
+              {totalItems} accounts
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -187,61 +197,76 @@ export const UsersPage: React.FC = () => {
           Loading user records...
         </div>
       ) : (
-        <div className="border border-border/80 rounded-lg bg-card/60 overflow-hidden shadow-sm backdrop-blur-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-background/80 border-b border-border/70 text-[10px] font-medium uppercase text-muted-foreground tracking-wider font-mono">
-                <tr>
-                  <th className="py-2.5 px-4 font-sans">Username</th>
-                  <th className="py-2.5 px-3">Role</th>
-                  <th className="py-2.5 px-3">User ID</th>
-                  <th className="py-2.5 px-3 font-sans">Created Date</th>
-                  <th className="py-2.5 px-4 text-right font-sans">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/40 font-mono">
-                {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-white/[0.03] transition-colors group font-sans">
-                    <td className="py-2.5 px-4 font-medium text-foreground flex items-center gap-2">
-                      {u.role === 'su' ? (
-                        <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
-                      ) : (
-                        <UserCheck className="h-3.5 w-3.5 text-primary" />
-                      )}
-                      <span>{u.username}</span>
-                    </td>
-                    <td className="py-2.5 px-3 font-mono">
-                      <Badge variant={u.role === 'su' ? 'default' : u.role === 'admin' ? 'secondary' : 'outline'} className="text-[10px] uppercase font-mono">
-                        {u.role}
-                      </Badge>
-                    </td>
-                    <td className="py-2.5 px-3 text-muted-foreground text-[11px] font-mono">{u.id}</td>
-                    <td className="py-2.5 px-3 text-muted-foreground text-[11px]">{formatDate(u.created_at)}</td>
-                    <td className="py-2.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => handleOpenEdit(u)}
-                          className="h-7 w-7 rounded inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/[0.06] transition-colors"
-                          title="Edit User Role / Password"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                        {u.role !== 'su' && (
-                          <button
-                            onClick={() => setUserToDelete(u)}
-                            className="h-7 w-7 rounded inline-flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            title="Delete User"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
+        <div className="space-y-4">
+          <div className="border border-border/80 rounded-lg bg-card/60 overflow-hidden shadow-sm backdrop-blur-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-background/80 border-b border-border/70 text-[10px] font-medium uppercase text-muted-foreground tracking-wider font-mono">
+                  <tr>
+                    <th className="py-2.5 px-4 font-sans">Username</th>
+                    <th className="py-2.5 px-3">Role</th>
+                    <th className="py-2.5 px-3">User ID</th>
+                    <th className="py-2.5 px-3 font-sans">Created Date</th>
+                    <th className="py-2.5 px-4 text-right font-sans">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border/40 font-mono">
+                  {users.map((u) => (
+                    <tr key={u.id} className="hover:bg-white/[0.03] transition-colors group font-sans">
+                      <td className="py-2.5 px-4 font-medium text-foreground flex items-center gap-2">
+                        {u.role === 'su' ? (
+                          <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
+                        ) : (
+                          <UserCheck className="h-3.5 w-3.5 text-primary" />
+                        )}
+                        <span>{u.username}</span>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono">
+                        <Badge variant={u.role === 'su' ? 'default' : u.role === 'admin' ? 'secondary' : 'outline'} className="text-[10px] uppercase font-mono">
+                          {u.role}
+                        </Badge>
+                      </td>
+                      <td className="py-2.5 px-3 text-muted-foreground text-[11px] font-mono">{u.id}</td>
+                      <td className="py-2.5 px-3 text-muted-foreground text-[11px]">{formatDate(u.created_at)}</td>
+                      <td className="py-2.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleOpenEdit(u)}
+                            className="h-7 w-7 rounded inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/[0.06] transition-colors"
+                            title="Edit User Role / Password"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+                          {u.role !== 'su' && (
+                            <button
+                              onClick={() => setUserToDelete(u)}
+                              className="h-7 w-7 rounded inline-flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              title="Delete User"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
+
+          {/* Pagination Controls */}
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={(newPage) => setPage(newPage)}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize)
+              setPage(1)
+            }}
+          />
         </div>
       )}
 

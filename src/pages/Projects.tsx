@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { api } from '@/api/client'
 import type { Project, ApiKey, PaginatedResponse } from '@/types/api'
-import { formatDate } from '@/lib/utils'
+import { formatDate, formatBytes } from '@/lib/utils'
 import { useToast } from '@/context/ToastContext'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Dialog } from '@/components/ui/dialog'
 import { AlertDialog } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
+import { Pagination } from '@/components/ui/pagination'
 import {
   Plus,
   Key,
@@ -22,12 +23,20 @@ import {
   Layers,
   Sparkles,
   AlertTriangle,
+  HardDrive,
+  Zap,
 } from 'lucide-react'
 
 export const Projects: React.FC = () => {
   const { toast } = useToast()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Pagination State
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [totalItems, setTotalItems] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
 
   // Create Project Modal
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -58,15 +67,18 @@ export const Projects: React.FC = () => {
   const [deletingProject, setDeletingProject] = useState(false)
 
   const fetchProjects = useCallback(async () => {
+    setLoading(true)
     try {
-      const res = await api.get<PaginatedResponse<Project>>('/projects')
+      const res = await api.get<PaginatedResponse<Project>>(`/projects?page=${page}&limit=${pageSize}`)
       setProjects(res.data.data)
+      setTotalItems(res.data.total_items)
+      setTotalPages(res.data.total_pages)
     } catch (e) {
       console.error(e)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [page, pageSize])
 
   useEffect(() => {
     fetchProjects()
@@ -275,7 +287,7 @@ export const Projects: React.FC = () => {
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold tracking-tight text-foreground">Projects</h2>
             <Badge variant="secondary" className="font-mono">
-              {projects.length}
+              {totalItems}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -307,107 +319,164 @@ export const Projects: React.FC = () => {
           </Button>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project) => {
-            const variantCount = Object.keys(project.settings.variants || {}).length
-            return (
-              <Card key={project.id} className="flex flex-col justify-between group">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <CardTitle className="truncate group-hover:text-primary transition-colors">
-                        {project.name}
-                      </CardTitle>
-                      <CardDescription className="line-clamp-2 mt-1 min-h-[32px]">
-                        {project.description || 'No description provided'}
-                      </CardDescription>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Badge variant="secondary" className="font-mono text-[10px]">
-                        {variantCount} {variantCount === 1 ? 'variant' : 'variants'}
-                      </Badge>
-                      <button
-                        onClick={() => {
-                          setProjectToDelete(project)
-                          setIsSoftDelete(true)
-                        }}
-                        className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        title="Delete Project"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                </CardHeader>
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {projects.map((project) => {
+              const variantCount = Object.keys(project.settings.variants || {}).length
+              const usedBytes = project.storage_used_bytes || 0
+              const limitBytes = project.storage_limit_bytes || 5 * 1024 * 1024 * 1024
+              const storagePercent = Math.min(100, Math.round((usedBytes / limitBytes) * 100))
 
-                <CardContent className="space-y-2.5 pt-0">
-                  <div className="text-[11px] text-muted-foreground space-y-0.5 font-mono">
-                    <p className="truncate">
-                      ID: <span className="text-foreground/80">{project.id}</span>
-                    </p>
-                    <p>
-                      Created: <span className="text-foreground/80 font-sans">{formatDate(project.created_at)}</span>
-                    </p>
-                  </div>
+              const usedTransforms = project.transforms_used || 0
+              const limitTransforms = project.transforms_limit || 10000
+              const transformPercent = Math.min(100, Math.round((usedTransforms / limitTransforms) * 100))
 
-                  <div className="rounded-md bg-background/50 p-2 text-xs font-mono border border-border/60">
-                    <p className="font-semibold text-muted-foreground uppercase text-[9px] mb-1 tracking-wider">
-                      Configured Variants
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {Object.keys(project.settings.variants || {}).length === 0 ? (
-                        <span className="text-[10px] text-muted-foreground italic">None configured</span>
-                      ) : (
-                        Object.keys(project.settings.variants || {}).map((v) => (
-                          <span
-                            key={v}
-                            className="bg-card px-1.5 py-0.5 rounded border border-border/70 text-[10px] text-foreground/90"
-                          >
-                            {v}
+              return (
+                <Card key={project.id} className="flex flex-col justify-between group hover:border-border transition-all duration-200">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="truncate group-hover:text-primary transition-colors">
+                          {project.name}
+                        </CardTitle>
+                        <CardDescription className="line-clamp-2 mt-1 min-h-[32px]">
+                          {project.description || 'No description provided'}
+                        </CardDescription>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Badge variant="secondary" className="font-mono text-[10px]">
+                          {variantCount} {variantCount === 1 ? 'variant' : 'variants'}
+                        </Badge>
+                        <button
+                          onClick={() => {
+                            setProjectToDelete(project)
+                            setIsSoftDelete(true)
+                          }}
+                          className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          title="Delete Project"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-3 pt-0">
+                    {/* Storage & Transform Quota Visualizers */}
+                    <div className="space-y-2 p-2.5 rounded-md bg-background/50 border border-border/60 text-[11px]">
+                      {/* Storage Bar */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-muted-foreground">
+                          <span className="flex items-center gap-1 text-[10px] uppercase font-semibold tracking-wider">
+                            <HardDrive className="h-3 w-3 text-primary" />
+                            <span>Storage</span>
                           </span>
-                        ))
-                      )}
+                          <span className="font-mono text-[10px]">
+                            {formatBytes(usedBytes)} / {formatBytes(limitBytes)}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-secondary/80 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              storagePercent > 90 ? 'bg-destructive' : 'bg-primary'
+                            }`}
+                            style={{ width: `${Math.max(2, storagePercent)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Transform Bar */}
+                      <div className="space-y-1 pt-0.5">
+                        <div className="flex items-center justify-between text-muted-foreground">
+                          <span className="flex items-center gap-1 text-[10px] uppercase font-semibold tracking-wider">
+                            <Zap className="h-3 w-3 text-amber-400" />
+                            <span>Transforms</span>
+                          </span>
+                          <span className="font-mono text-[10px]">
+                            {usedTransforms.toLocaleString()} / {limitTransforms.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-secondary/80 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-amber-400 rounded-full transition-all duration-300"
+                            style={{ width: `${Math.max(2, transformPercent)}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
 
-                <CardFooter className="pt-2 border-t border-border/40 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenKeys(project)}
-                      title="Manage API Keys"
-                      className="gap-1 text-[11px]"
-                    >
-                      <Key className="h-3.5 w-3.5" />
-                      <span>Keys</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenSettings(project)}
-                      title="Variant Settings"
-                      className="gap-1 text-[11px]"
-                    >
-                      <SlidersHorizontal className="h-3.5 w-3.5" />
-                      <span>Variants</span>
-                    </Button>
-                  </div>
+                    <div className="rounded-md bg-background/30 p-2 text-xs font-mono border border-border/50">
+                      <p className="font-semibold text-muted-foreground uppercase text-[9px] mb-1 tracking-wider">
+                        Configured Variants
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {Object.keys(project.settings.variants || {}).length === 0 ? (
+                          <span className="text-[10px] text-muted-foreground italic">None configured</span>
+                        ) : (
+                          Object.keys(project.settings.variants || {}).map((v) => (
+                            <span
+                              key={v}
+                              className="bg-card px-1.5 py-0.5 rounded border border-border/70 text-[10px] text-foreground/90"
+                            >
+                              {v}
+                            </span>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
 
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleSyncVariants(project.id)}
-                    title="Regenerate All Variants"
-                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  </Button>
-                </CardFooter>
-              </Card>
-            )
-          })}
+                  <CardFooter className="pt-2 border-t border-border/40 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenKeys(project)}
+                        title="Manage API Keys"
+                        className="gap-1 text-[11px]"
+                      >
+                        <Key className="h-3.5 w-3.5" />
+                        <span>Keys</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenSettings(project)}
+                        title="Variant Settings"
+                        className="gap-1 text-[11px]"
+                      >
+                        <SlidersHorizontal className="h-3.5 w-3.5" />
+                        <span>Variants</span>
+                      </Button>
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleSyncVariants(project.id)}
+                      title="Regenerate All Variants"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    </Button>
+                  </CardFooter>
+                </Card>
+              )
+            })}
+          </div>
+
+          {/* Pagination Controls */}
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={(newPage) => setPage(newPage)}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize)
+              setPage(1)
+            }}
+          />
         </div>
       )}
 

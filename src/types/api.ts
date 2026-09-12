@@ -26,6 +26,10 @@ export interface Project {
   name: string
   description?: string
   settings: ProjectSettings
+  storage_used_bytes?: number
+  storage_limit_bytes?: number
+  transforms_used?: number
+  transforms_limit?: number
   created_at: string
   updated_at: string
 }
