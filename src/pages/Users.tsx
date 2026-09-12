@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Dialog } from '@/components/ui/dialog'
 import { AlertDialog } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Trash2, ShieldCheck, UserCheck, Edit2, Key, Shield } from 'lucide-react'
+import { Plus, Trash2, ShieldCheck, UserCheck, Edit2 } from 'lucide-react'
 
 export const UsersPage: React.FC = () => {
   const { toast } = useToast()

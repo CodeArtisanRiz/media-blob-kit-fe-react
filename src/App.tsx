@@ -1,56 +1,49 @@
-import React, { useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { ThemeProvider } from '@/context/ThemeContext'
 import { ToastProvider } from '@/context/ToastContext'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { Header } from '@/components/layout/Header'
 import { Login } from '@/pages/Login'
 import { Projects } from '@/pages/Projects'
 import { MediaManager } from '@/pages/MediaManager'
 import { JobMonitor } from '@/pages/JobMonitor'
 import { UsersPage } from '@/pages/Users'
-import { Menu, Layers } from 'lucide-react'
 
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isOpenMobile, setIsOpenMobile] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    return localStorage.getItem('mbk_sidebar_collapsed') === 'true'
+  })
+
+  useEffect(() => {
+    localStorage.setItem('mbk_sidebar_collapsed', String(isCollapsed))
+  }, [isCollapsed])
 
   return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row">
-      {/* Mobile Header with Logo & Right Hamburger Button */}
-      <header className="md:hidden flex items-center justify-between p-4 border-b border-border/80 bg-card sticky top-0 z-30 shadow-sm">
-        <Link
-          to="/projects"
-          className="flex items-center gap-2.5 text-left focus:outline-none"
-        >
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#6366f1] to-[#4f46e5] flex items-center justify-center text-white font-bold shadow border border-white/[0.15]">
-            <Layers className="h-4 w-4" />
-          </div>
-          <div>
-            <span className="font-bold text-sm text-foreground leading-none block">MediaBlobKit</span>
-            <span className="text-[10px] text-muted-foreground block">Media & Image Suite</span>
-          </div>
-        </Link>
-
-        {/* Right Hamburger Toggle */}
-        <button
-          onClick={() => setIsOpenMobile(true)}
-          className="p-2 rounded-lg border border-border/80 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-          title="Open Menu"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
-      </header>
-
-      {/* Responsive Sidebar Component */}
+    <div className="min-h-screen bg-background flex flex-col md:flex-row antialiased">
+      {/* Dynamic Collapsible Responsive Sidebar */}
       <Sidebar
+        isCollapsed={isCollapsed}
+        setIsCollapsed={setIsCollapsed}
         isOpenMobile={isOpenMobile}
         setIsOpenMobile={setIsOpenMobile}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto overflow-y-auto">
-        {children}
-      </main>
+      {/* Main Workspace Column with Top Navigation Header */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        <Header
+          isCollapsed={isCollapsed}
+          setIsCollapsed={setIsCollapsed}
+          isOpenMobile={isOpenMobile}
+          setIsOpenMobile={setIsOpenMobile}
+        />
+
+        <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto overflow-y-auto">
+          {children}
+        </main>
+      </div>
     </div>
   )
 }
