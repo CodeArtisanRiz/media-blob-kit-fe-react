@@ -1,21 +1,27 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { api, API_BASE_URL } from '@/api/client'
 import type { JobItem } from '@/types/api'
 import { formatDate } from '@/lib/utils'
+import { useToast } from '@/context/ToastContext'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { Clock, CheckCircle2, XCircle, Loader2, RefreshCw, Eye } from 'lucide-react'
 
+type SseConnectionStatus = 'connecting' | 'connected' | 'error'
+
 export const JobMonitor: React.FC = () => {
+  const { toast } = useToast()
   const [jobs, setJobs] = useState<JobItem[]>([])
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'processing' | 'completed' | 'failed'>('all')
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [selectedJob, setSelectedJob] = useState<JobItem | null>(null)
-  const [sseConnected, setSseConnected] = useState(false)
+  const [sseStatus, setSseStatus] = useState<SseConnectionStatus>('connecting')
 
-  const fetchJobs = React.useCallback(async () => {
+  const fetchJobs = useCallback(async (isManual = false) => {
+    if (isManual) setRefreshing(true)
     try {
       const res = await api.get<Record<string, { jobs: JobItem[] }>>('/admin/jobs')
       const allJobs: JobItem[] = []
@@ -24,12 +30,27 @@ export const JobMonitor: React.FC = () => {
       })
       allJobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       setJobs(allJobs)
+      if (isManual) {
+        toast({
+          title: 'Queue Refreshed',
+          description: `Loaded ${allJobs.length} total transformation jobs.`,
+          variant: 'info',
+        })
+      }
     } catch (e) {
       console.error(e)
+      if (isManual) {
+        toast({
+          title: 'Refresh Failed',
+          description: 'Failed to fetch background jobs.',
+          variant: 'destructive',
+        })
+      }
     } finally {
       setLoading(false)
+      if (isManual) setRefreshing(false)
     }
-  }, [])
+  }, [toast])
 
   useEffect(() => {
     fetchJobs()
@@ -38,8 +59,14 @@ export const JobMonitor: React.FC = () => {
     const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : ''
     const sseUrl = `${API_BASE_URL}/admin/jobs/events${tokenQuery}`
     const es = new EventSource(sseUrl)
-    es.onopen = () => setSseConnected(true)
-    es.onerror = () => setSseConnected(false)
+
+    es.onopen = () => {
+      setSseStatus('connected')
+    }
+
+    es.onerror = () => {
+      setSseStatus('error')
+    }
 
     es.addEventListener('job_update', (event) => {
       try {
@@ -81,14 +108,21 @@ export const JobMonitor: React.FC = () => {
         <div>
           <div className="flex items-center gap-2.5">
             <h2 className="text-lg font-semibold tracking-tight text-foreground">Live Job Monitor</h2>
-            {sseConnected ? (
+            {sseStatus === 'connected' && (
               <Badge variant="success" className="gap-1 px-2 py-0.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 SSE Stream Active
               </Badge>
-            ) : (
+            )}
+            {sseStatus === 'connecting' && (
+              <Badge variant="secondary" className="gap-1 px-2 py-0.5 text-muted-foreground">
+                <Loader2 className="h-3 w-3 text-primary animate-spin" />
+                Connecting Stream...
+              </Badge>
+            )}
+            {sseStatus === 'error' && (
               <Badge variant="secondary" className="text-muted-foreground gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400/80" />
                 Polling Fallback
               </Badge>
             )}
@@ -98,9 +132,15 @@ export const JobMonitor: React.FC = () => {
           </p>
         </div>
 
-        <Button variant="outline" size="sm" onClick={fetchJobs} className="gap-1.5 self-start sm:self-auto">
-          <RefreshCw className="h-3.5 w-3.5" />
-          <span>Refresh Queue</span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fetchJobs(true)}
+          disabled={refreshing}
+          className="gap-1.5 self-start sm:self-auto text-xs"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+          <span>{refreshing ? 'Refreshing...' : 'Refresh Queue'}</span>
         </Button>
       </div>
 
@@ -202,7 +242,7 @@ export const JobMonitor: React.FC = () => {
                   <th className="py-2.5 px-3">File ID</th>
                   <th className="py-2.5 px-3">Status</th>
                   <th className="py-2.5 px-3 font-sans">Timestamp</th>
-                  <th className="py-2.5 px-4 text-right">Details</th>
+                  <th className="py-2.5 px-4 text-right font-sans">Details</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40 text-xs">
@@ -224,7 +264,7 @@ export const JobMonitor: React.FC = () => {
                     <td className="py-2.5 px-3 text-muted-foreground font-sans text-[11px]">
                       {formatDate(job.updated_at)}
                     </td>
-                    <td className="py-2.5 px-4 text-right">
+                    <td className="py-2.5 px-4 text-right font-sans">
                       <Button variant="ghost" size="sm" onClick={() => setSelectedJob(job)} className="h-6 text-[11px] gap-1 font-sans">
                         <Eye className="h-3 w-3" />
                         <span>Payload</span>
