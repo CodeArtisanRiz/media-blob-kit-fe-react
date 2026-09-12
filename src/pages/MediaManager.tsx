@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { api, API_BASE_URL } from '@/api/client'
 import type { FileItem, Project, PaginatedResponse } from '@/types/api'
 import { formatDate, formatBytes } from '@/lib/utils'
-import { getKeySecret, saveKeyToVault } from '@/lib/keys'
+import { getKeySecret } from '@/lib/keys'
 import { useToast } from '@/context/ToastContext'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -18,8 +18,6 @@ import {
   CheckSquare,
   Square,
   ImageIcon,
-  Eye,
-  EyeOff,
   Key,
 } from 'lucide-react'
 
@@ -35,8 +33,6 @@ export const MediaManager: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [apiKeys, setApiKeys] = useState<{ id: string; name: string }[]>([])
   const [selectedKeyId, setSelectedKeyId] = useState<string>('')
-  const [apiKeySecret, setApiKeySecret] = useState<string>('')
-  const [showKeySecret, setShowKeySecret] = useState(false)
   const [selectedVariants, setSelectedVariants] = useState<Record<string, boolean>>({})
   const [uploading, setUploading] = useState(false)
 
@@ -94,36 +90,18 @@ export const MediaManager: React.FC = () => {
       const res = await api.get<PaginatedResponse<{ id: string; name: string }>>(`/projects/${activeProject.id}/keys`)
       setApiKeys(res.data.data)
       if (res.data.data.length > 0) {
-        const firstKey = res.data.data[0]
-        setSelectedKeyId(firstKey.id)
-        const secret = getKeySecret(firstKey.id)
-        if (secret) {
-          setApiKeySecret(secret)
-        } else {
-          setApiKeySecret('')
-        }
+        setSelectedKeyId(res.data.data[0].id)
       } else {
         setSelectedKeyId('')
-        setApiKeySecret('')
       }
     } catch (e) {
       console.error(e)
     }
   }
 
-  const handleKeySelectChange = (keyId: string) => {
-    setSelectedKeyId(keyId)
-    const secret = getKeySecret(keyId)
-    if (secret) {
-      setApiKeySecret(secret)
-    } else {
-      setApiKeySecret('')
-    }
-  }
-
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedFile || !apiKeySecret.trim() || !activeProject) return
+    if (!selectedFile || !activeProject) return
 
     setUploading(true)
     try {
@@ -140,22 +118,21 @@ export const MediaManager: React.FC = () => {
 
       const queryParam = isImage && selectedVariantNames ? `?variants=${encodeURIComponent(selectedVariantNames)}` : ''
 
-      await api.post(`${endpoint}${queryParam}`, formData, {
-        headers: {
-          'x-api-key': apiKeySecret.trim(),
-          'Content-Type': 'multipart/form-data',
-        },
-      })
+      const headers: Record<string, string> = {
+        'x-project-id': activeProject.id,
+      }
 
       if (selectedKeyId) {
-        const keyItem = apiKeys.find((k) => k.id === selectedKeyId)
-        saveKeyToVault({
-          keyId: selectedKeyId,
-          name: keyItem ? keyItem.name : 'Stored Key',
-          secret: apiKeySecret.trim(),
-          projectId: activeProject.id,
-        })
+        headers['x-api-key-id'] = selectedKeyId
+        const savedSecret = getKeySecret(selectedKeyId)
+        if (savedSecret) {
+          headers['x-api-key'] = savedSecret
+        }
       }
+
+      await api.post(`${endpoint}${queryParam}`, formData, {
+        headers,
+      })
 
       toast({
         title: 'Asset Uploaded',
@@ -165,10 +142,15 @@ export const MediaManager: React.FC = () => {
 
       setIsUploadOpen(false)
       fetchFiles()
-    } catch {
+    } catch (err: unknown) {
+      let errMsg = 'Upload failed. Please verify file format and project credentials.'
+      if (err && typeof err === 'object' && 'response' in err) {
+        const resp = (err as { response?: { data?: { error?: string } } }).response
+        errMsg = resp?.data?.error || errMsg
+      }
       toast({
         title: 'Upload Failed',
-        description: 'Please verify the API Key secret and file format.',
+        description: errMsg,
         variant: 'destructive',
       })
     } finally {
@@ -357,13 +339,19 @@ export const MediaManager: React.FC = () => {
       />
 
       {/* Upload Modal */}
-      <Dialog open={isUploadOpen} onClose={() => setIsUploadOpen(false)} title={`Upload Asset - ${activeProject?.name}`} className="max-w-md">
+      <Dialog
+        open={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
+        title={`Upload Asset - ${activeProject?.name}`}
+        description="Select a file and transformation pipeline to store in S3"
+        className="max-w-md"
+      >
         <form onSubmit={handleUploadSubmit} className="space-y-4 pt-1">
-          {/* Scoped API Key Selector & Secret Field */}
-          <div className="space-y-2">
+          {/* Scoped API Key Dropdown Selector Only */}
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider block">
-                Scoped API Key
+                Scoped Project Key
               </label>
               {apiKeys.length > 0 && (
                 <span className="text-[10px] text-muted-foreground font-mono">
@@ -373,44 +361,22 @@ export const MediaManager: React.FC = () => {
             </div>
 
             {apiKeys.length === 0 ? (
-              <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs">
-                No API keys found for this project. Please create an API Key in the Projects tab first.
+              <div className="p-2.5 rounded-md bg-secondary/50 border border-border/70 text-muted-foreground text-xs flex items-center gap-2">
+                <Key className="h-3.5 w-3.5 text-primary" />
+                <span>Uploading with session workspace authorization</span>
               </div>
             ) : (
-              <div className="space-y-2">
-                <select
-                  value={selectedKeyId}
-                  onChange={(e) => handleKeySelectChange(e.target.value)}
-                  className="w-full h-8 rounded-md border border-border/80 bg-background/70 px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  required
-                >
-                  {apiKeys.map((k) => (
-                    <option key={k.id} value={k.id} className="bg-card text-foreground">
-                      {k.name} ({k.id.slice(0, 8)}...)
-                    </option>
-                  ))}
-                </select>
-
-                <div className="relative">
-                  <Key className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    type={showKeySecret ? 'text' : 'password'}
-                    placeholder="Enter or paste mbk_... secret"
-                    value={apiKeySecret}
-                    onChange={(e) => setApiKeySecret(e.target.value)}
-                    className="pl-8 pr-8 font-mono text-xs h-8 bg-background/50"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowKeySecret(!showKeySecret)}
-                    className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
-                    title={showKeySecret ? 'Hide secret' : 'Reveal secret'}
-                  >
-                    {showKeySecret ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-              </div>
+              <select
+                value={selectedKeyId}
+                onChange={(e) => setSelectedKeyId(e.target.value)}
+                className="w-full h-8 rounded-md border border-border/80 bg-background/70 px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono cursor-pointer"
+              >
+                {apiKeys.map((k) => (
+                  <option key={k.id} value={k.id} className="bg-card text-foreground">
+                    {k.name} ({k.id.slice(0, 8)})
+                  </option>
+                ))}
+              </select>
             )}
           </div>
 
@@ -460,11 +426,17 @@ export const MediaManager: React.FC = () => {
             </div>
           )}
 
-          <div className="pt-2 flex justify-end gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsUploadOpen(false)}>
+          <div className="pt-2 flex justify-end gap-2 border-t border-border/40">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsUploadOpen(false)}
+              disabled={uploading}
+            >
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={uploading || !apiKeySecret.trim() || !selectedFile}>
+            <Button type="submit" size="sm" disabled={uploading || !selectedFile}>
               {uploading ? 'Uploading...' : 'Upload Asset'}
             </Button>
           </div>
