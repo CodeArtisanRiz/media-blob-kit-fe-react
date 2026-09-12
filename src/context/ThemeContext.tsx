@@ -14,23 +14,23 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
     const saved = localStorage.getItem('theme') as Theme | null
-    return saved || 'system'
+    return saved || 'dark'
   })
 
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(() => {
-    if (typeof window === 'undefined') return 'light'
+    if (typeof window === 'undefined') return 'dark'
     const saved = localStorage.getItem('theme') as Theme | null
     if (saved === 'dark' || saved === 'light') return saved
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    return 'dark'
   })
 
   useEffect(() => {
     const root = document.documentElement
 
     const updateResolvedTheme = () => {
-      let isDark = false
+      let isDark = true
       if (theme === 'system') {
-        isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        isDark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)').matches : true
       } else {
         isDark = theme === 'dark'
       }
@@ -47,7 +47,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     updateResolvedTheme()
 
-    if (theme === 'system') {
+    if (theme === 'system' && window.matchMedia) {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
       const listener = () => updateResolvedTheme()
       mediaQuery.addEventListener('change', listener)
