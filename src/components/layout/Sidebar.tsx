@@ -22,7 +22,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile, setIsOpenMobile 
     { to: '/jobs', label: 'Live Job Monitor', icon: Activity, badge: 'Live' },
   ]
 
-  if (user?.role === 'su') {
+  // Allow both Superusers and Admins to access User Management
+  if (user?.role === 'su' || user?.role === 'admin') {
     mainNav.push({ to: '/users', label: 'User Management', icon: Users, badge: null })
   }
 

@@ -55,9 +55,9 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   )
 }
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: string }> = ({
+const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({
   children,
-  requiredRole,
+  allowedRoles,
 }) => {
   const { user, loading } = useAuth()
 
@@ -76,7 +76,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: strin
     return <Navigate to="/login" replace />
   }
 
-  if (requiredRole && user.role !== requiredRole) {
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
     return <Navigate to="/projects" replace />
   }
 
@@ -149,7 +149,7 @@ export function App() {
               <Route
                 path="/users"
                 element={
-                  <ProtectedRoute requiredRole="su">
+                  <ProtectedRoute allowedRoles={['su', 'admin']}>
                     <UsersPage />
                   </ProtectedRoute>
                 }

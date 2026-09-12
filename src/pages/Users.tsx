@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Dialog } from '@/components/ui/dialog'
 import { AlertDialog } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Trash2, ShieldCheck, UserCheck } from 'lucide-react'
+import { Plus, Trash2, ShieldCheck, UserCheck, Edit2, Key, Shield } from 'lucide-react'
 
 export const UsersPage: React.FC = () => {
   const { toast } = useToast()
@@ -22,6 +22,13 @@ export const UsersPage: React.FC = () => {
   const [newRole, setNewRole] = useState<Role>('user')
   const [createError, setCreateError] = useState('')
   const [creatingUser, setCreatingUser] = useState(false)
+
+  // Edit User Modal
+  const [userToEdit, setUserToEdit] = useState<User | null>(null)
+  const [editRole, setEditRole] = useState<Role>('user')
+  const [editPassword, setEditPassword] = useState('')
+  const [updatingUser, setUpdatingUser] = useState(false)
+  const [editError, setEditError] = useState('')
 
   // User Delete State
   const [userToDelete, setUserToDelete] = useState<User | null>(null)
@@ -78,6 +85,52 @@ export const UsersPage: React.FC = () => {
     }
   }
 
+  const handleOpenEdit = (user: User) => {
+    setUserToEdit(user)
+    setEditRole(user.role)
+    setEditPassword('')
+    setEditError('')
+  }
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!userToEdit) return
+
+    setUpdatingUser(true)
+    setEditError('')
+    try {
+      const payload: { role?: Role; password?: string } = {
+        role: editRole,
+      }
+      if (editPassword.trim()) {
+        payload.password = editPassword.trim()
+      }
+
+      await api.patch(`/users/${userToEdit.id}`, payload)
+      toast({
+        title: 'Account Updated',
+        description: `User account "${userToEdit.username}" updated successfully.`,
+        variant: 'success',
+      })
+      setUserToEdit(null)
+      fetchUsers()
+    } catch (err: unknown) {
+      let errMsg = 'Failed to update user'
+      if (err && typeof err === 'object' && 'response' in err) {
+        const resp = (err as { response?: { data?: { error?: string } } }).response
+        errMsg = resp?.data?.error || errMsg
+      }
+      setEditError(errMsg)
+      toast({
+        title: 'Update Error',
+        description: errMsg,
+        variant: 'destructive',
+      })
+    } finally {
+      setUpdatingUser(false)
+    }
+  }
+
   const handleConfirmDeleteUser = async () => {
     if (!userToDelete) return
     setDeletingUser(true)
@@ -118,7 +171,7 @@ export const UsersPage: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Superuser control panel for provisioning system access accounts and managing RBAC permissions
+            Administration panel for provisioning accounts, managing roles, and rotating passwords
           </p>
         </div>
 
@@ -165,15 +218,24 @@ export const UsersPage: React.FC = () => {
                     <td className="py-2.5 px-3 text-muted-foreground text-[11px] font-mono">{u.id}</td>
                     <td className="py-2.5 px-3 text-muted-foreground text-[11px]">{formatDate(u.created_at)}</td>
                     <td className="py-2.5 px-4 text-right">
-                      {u.role !== 'su' && (
+                      <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() => setUserToDelete(u)}
-                          className="h-6 w-6 rounded inline-flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          title="Delete User"
+                          onClick={() => handleOpenEdit(u)}
+                          className="h-7 w-7 rounded inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/[0.06] transition-colors"
+                          title="Edit User Role / Password"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Edit2 className="h-3.5 w-3.5" />
                         </button>
-                      )}
+                        {u.role !== 'su' && (
+                          <button
+                            onClick={() => setUserToDelete(u)}
+                            className="h-7 w-7 rounded inline-flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            title="Delete User"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -195,50 +257,97 @@ export const UsersPage: React.FC = () => {
         confirmLabel="Delete User"
       />
 
+      {/* Edit User Modal */}
+      <Dialog open={!!userToEdit} onClose={() => setUserToEdit(null)} title={`Edit User - ${userToEdit?.username}`} className="max-w-md">
+        <form onSubmit={handleUpdateUser} className="space-y-4 pt-1">
+          {editError && (
+            <div className="p-2.5 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+              {editError}
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider block">Role Permission</label>
+            <select
+              value={editRole}
+              onChange={(e) => setEditRole(e.target.value as Role)}
+              className="w-full h-8 rounded-md border border-border/80 bg-background/50 px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="user" className="bg-card text-foreground">User (Standard Access)</option>
+              <option value="admin" className="bg-card text-foreground">Admin (Project Owner & Team Manager)</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider block">
+              Reset Password (Optional)
+            </label>
+            <Input
+              type="password"
+              placeholder="Leave blank to keep existing password"
+              value={editPassword}
+              onChange={(e) => setEditPassword(e.target.value)}
+              className="h-8 text-xs"
+            />
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2 border-t border-border/40">
+            <Button type="button" variant="outline" size="sm" onClick={() => setUserToEdit(null)} disabled={updatingUser}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={updatingUser}>
+              {updatingUser ? 'Updating...' : 'Save Changes'}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
       {/* Create User Modal */}
       <Dialog open={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Provision New Account" className="max-w-md">
-        <form onSubmit={handleCreateUser} className="space-y-3.5">
+        <form onSubmit={handleCreateUser} className="space-y-4 pt-1">
           {createError && (
             <div className="p-2.5 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
               {createError}
             </div>
           )}
 
-          <div className="space-y-1">
-            <label className="text-[11px] font-medium uppercase text-muted-foreground tracking-wider">Username</label>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider block">Username</label>
             <Input
               type="text"
               placeholder="e.g. backend_service"
               value={newUsername}
               onChange={(e) => setNewUsername(e.target.value)}
               required
+              className="h-8 text-xs"
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[11px] font-medium uppercase text-muted-foreground tracking-wider">Password</label>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider block">Password</label>
             <Input
               type="password"
               placeholder="Enter secure password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
+              className="h-8 text-xs"
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[11px] font-medium uppercase text-muted-foreground tracking-wider">Role</label>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider block">Role Permission</label>
             <select
               value={newRole}
               onChange={(e) => setNewRole(e.target.value as Role)}
               className="w-full h-8 rounded-md border border-border/80 bg-background/50 px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="user" className="bg-card text-foreground">User (Standard Access)</option>
-              <option value="admin" className="bg-card text-foreground">Admin (Project Owner)</option>
+              <option value="admin" className="bg-card text-foreground">Admin (Project Owner & Team Manager)</option>
             </select>
           </div>
 
-          <div className="pt-2 flex justify-end gap-2">
+          <div className="pt-2 flex justify-end gap-2 border-t border-border/40">
             <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)} disabled={creatingUser}>
               Cancel
             </Button>
