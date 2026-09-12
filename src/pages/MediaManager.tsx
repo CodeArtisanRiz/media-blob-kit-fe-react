@@ -60,13 +60,11 @@ export const MediaManager: React.FC = () => {
     try {
       const res = await api.get<PaginatedResponse<Project>>('/projects')
       setProjects(res.data.data)
-      if (res.data.data.length > 0 && !selectedProjectId) {
-        setSelectedProjectId(res.data.data[0].id)
-      }
+      // We no longer brutally auto-select the first project. It remains empty ('') mapping to "All"
     } catch (e) {
       console.error(e)
     }
-  }, [selectedProjectId])
+  }, [])
 
   const fetchFiles = useCallback(async () => {
     setLoading(true)
@@ -278,6 +276,9 @@ export const MediaManager: React.FC = () => {
               }}
               className="bg-transparent focus:outline-none font-medium text-foreground cursor-pointer text-xs pr-1"
             >
+              <option value="" className="bg-card text-foreground font-semibold">
+                All Projects
+              </option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id} className="bg-card text-foreground">
                   {p.name}
@@ -286,7 +287,13 @@ export const MediaManager: React.FC = () => {
             </select>
           </div>
 
-          <Button onClick={handleOpenUpload} className="gap-1.5" size="sm">
+          <Button 
+            onClick={handleOpenUpload} 
+            className="gap-1.5" 
+            size="sm"
+            disabled={!selectedProjectId} // Must select a target project to upload
+            title={!selectedProjectId ? "Select a specific project to upload assets" : undefined}
+          >
             <UploadCloud className="h-3.5 w-3.5" />
             <span>Upload</span>
           </Button>
@@ -343,13 +350,17 @@ export const MediaManager: React.FC = () => {
           <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3 border border-primary/20">
             <ImageIcon className="h-5 w-5" />
           </div>
-          <p className="font-semibold text-foreground text-sm">No files uploaded yet</p>
+          <p className="font-semibold text-foreground text-sm">No files found</p>
           <p className="text-xs text-muted-foreground mt-1 mb-4">
-            Upload an image to start transforming assets in bucket "{activeProject?.name || 'default'}".
+            {selectedProjectId 
+              ? `Upload an image to start transforming assets in "${activeProject?.name}".`
+              : 'Select a specific project from the top filter to upload new assets.'}
           </p>
-          <Button onClick={handleOpenUpload} size="sm">
-            Upload Object
-          </Button>
+          {selectedProjectId && (
+            <Button onClick={handleOpenUpload} size="sm">
+              Upload Object
+            </Button>
+          )}
         </Card>
       ) : (
         <div className="space-y-4">
