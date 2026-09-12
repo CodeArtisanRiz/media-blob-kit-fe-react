@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { api } from '@/api/client'
 import type { Project, ApiKey, PaginatedResponse } from '@/types/api'
 import { formatDate } from '@/lib/utils'
-import { saveKeyToVault, removeKeyFromVault, getKeySecret } from '@/lib/keys'
 import { useToast } from '@/context/ToastContext'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -21,9 +20,8 @@ import {
   CheckSquare,
   Square,
   Layers,
-  Eye,
-  EyeOff,
   Sparkles,
+  AlertTriangle,
 } from 'lucide-react'
 
 export const Projects: React.FC = () => {
@@ -43,10 +41,7 @@ export const Projects: React.FC = () => {
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false)
   const [newKeyName, setNewKeyName] = useState('')
   const [createdKeySecret, setCreatedKeySecret] = useState('')
-  const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null)
-  const [revealedKeyIds, setRevealedKeyIds] = useState<Record<string, boolean>>({})
-  const [manualInputKeyId, setManualInputKeyId] = useState<string | null>(null)
-  const [manualSecretInput, setManualSecretInput] = useState('')
+  const [copiedKey, setCopiedKey] = useState(false)
   const [creatingKey, setCreatingKey] = useState(false)
   const [keyToDelete, setKeyToDelete] = useState<ApiKey | null>(null)
   const [deletingKey, setDeletingKey] = useState(false)
@@ -126,8 +121,7 @@ export const Projects: React.FC = () => {
     setSelectedProject(project)
     setIsKeyModalOpen(true)
     setCreatedKeySecret('')
-    setManualInputKeyId(null)
-    setManualSecretInput('')
+    setCopiedKey(false)
     loadProjectKeys(project.id)
   }
 
@@ -141,22 +135,13 @@ export const Projects: React.FC = () => {
         name: newKeyName.trim(),
       })
 
-      const generatedKey = res.data.key
-      if (generatedKey) {
-        setCreatedKeySecret(generatedKey)
-        saveKeyToVault({
-          keyId: res.data.id,
-          name: res.data.name,
-          secret: generatedKey,
-          projectId: selectedProject.id,
-          createdAt: res.data.created_at,
-        })
-        setRevealedKeyIds((prev) => ({ ...prev, [res.data.id]: true }))
+      if (res.data.key) {
+        setCreatedKeySecret(res.data.key)
       }
 
       toast({
-        title: 'API Key Generated',
-        description: `Scoped key "${res.data.name}" is active and ready.`,
+        title: 'API Key Created',
+        description: `Scoped key "${res.data.name}" is generated. Copy it now.`,
         variant: 'success',
       })
       setNewKeyName('')
@@ -177,10 +162,6 @@ export const Projects: React.FC = () => {
     setDeletingKey(true)
     try {
       await api.delete(`/projects/${selectedProject.id}/keys/${keyToDelete.id}`)
-      removeKeyFromVault(keyToDelete.id)
-      if (createdKeySecret && createdKeySecret === getKeySecret(keyToDelete.id)) {
-        setCreatedKeySecret('')
-      }
       toast({
         title: 'API Key Revoked',
         description: `Key "${keyToDelete.name}" has been permanently deleted.`,
@@ -199,54 +180,16 @@ export const Projects: React.FC = () => {
     }
   }
 
-  const toggleRevealKey = (keyId: string) => {
-    setRevealedKeyIds((prev) => ({
-      ...prev,
-      [keyId]: !prev[keyId],
-    }))
-  }
-
-  const handleCopyKey = (keyId: string, fallbackKey?: string) => {
-    const secret = getKeySecret(keyId) || fallbackKey || createdKeySecret
-    if (!secret) {
-      navigator.clipboard.writeText(keyId)
-      setCopiedKeyId(keyId)
-      toast({
-        title: 'Key ID Copied',
-        description: 'Copied key identifier to clipboard.',
-        variant: 'info',
-      })
-      setTimeout(() => setCopiedKeyId(null), 2000)
-      return
-    }
-
-    navigator.clipboard.writeText(secret)
-    setCopiedKeyId(keyId)
+  const handleCopyNewSecret = () => {
+    if (!createdKeySecret) return
+    navigator.clipboard.writeText(createdKeySecret)
+    setCopiedKey(true)
     toast({
-      title: 'Secret Copied',
-      description: 'API key secret copied to clipboard.',
+      title: 'API Key Copied',
+      description: 'Secret key copied to clipboard. Store it in a secure password manager or environment file.',
       variant: 'success',
     })
-    setTimeout(() => setCopiedKeyId(null), 2000)
-  }
-
-  const handleSaveManualSecret = (key: ApiKey) => {
-    if (!manualSecretInput.trim() || !selectedProject) return
-    saveKeyToVault({
-      keyId: key.id,
-      name: key.name,
-      secret: manualSecretInput.trim(),
-      projectId: selectedProject.id,
-      createdAt: key.created_at,
-    })
-    setRevealedKeyIds((prev) => ({ ...prev, [key.id]: true }))
-    setManualInputKeyId(null)
-    setManualSecretInput('')
-    toast({
-      title: 'Secret Remembered',
-      description: `Saved secret token for "${key.name}" to workspace vault.`,
-      variant: 'success',
-    })
+    setTimeout(() => setCopiedKey(false), 3000)
   }
 
   const handleOpenSettings = (project: Project) => {
@@ -556,44 +499,40 @@ export const Projects: React.FC = () => {
         onClose={() => {
           setIsKeyModalOpen(false)
           setCreatedKeySecret('')
-          setManualInputKeyId(null)
         }}
         title={`API Keys - ${selectedProject?.name}`}
-        description="Scoped credentials for uploading and transforming blobs via REST API"
+        description="Scoped credentials for external services and upload pipelines"
         className="max-w-lg"
       >
         <div className="space-y-4 pt-1">
           {/* Newly Generated Secret Banner */}
           {createdKeySecret && (
-            <div className="p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-2 animate-in fade-in-0 duration-200">
+            <div className="p-4 rounded-xl bg-gradient-to-b from-emerald-500/15 to-emerald-500/5 border border-emerald-500/30 space-y-3 animate-in fade-in-0 duration-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>New API Secret Generated</span>
+                  <Sparkles className="h-4 w-4" />
+                  <span>New Secret Key Generated</span>
                 </div>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
-                  Ready to use
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-medium">
+                  Copy Now
                 </span>
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Input
-                    type="text"
-                    readOnly
-                    value={createdKeySecret}
-                    className="font-mono text-xs bg-background/90 pr-9 border-emerald-500/40 text-emerald-300 selection:bg-emerald-500/30"
-                  />
-                </div>
+                <Input
+                  type="text"
+                  readOnly
+                  value={createdKeySecret}
+                  className="font-mono text-xs bg-black/50 border-emerald-500/40 text-emerald-200 selection:bg-emerald-500/40 select-all"
+                />
                 <Button
                   size="sm"
-                  variant="outline"
-                  onClick={() => handleCopyKey('new-created', createdKeySecret)}
-                  className="shrink-0 gap-1 border-emerald-500/40 hover:bg-emerald-500/20 text-emerald-300"
+                  onClick={handleCopyNewSecret}
+                  className="shrink-0 gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white"
                 >
-                  {copiedKeyId === 'new-created' ? (
+                  {copiedKey ? (
                     <>
-                      <Check className="h-3.5 w-3.5 text-emerald-400" />
+                      <Check className="h-3.5 w-3.5" />
                       <span>Copied</span>
                     </>
                   ) : (
@@ -605,9 +544,12 @@ export const Projects: React.FC = () => {
                 </Button>
               </div>
 
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Copy this key now. It has been saved in your local workspace vault for one-click copying and uploading.
-              </p>
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-black/40 border border-emerald-500/20 text-[11px] text-muted-foreground leading-relaxed">
+                <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                <span>
+                  <strong className="text-foreground">Please save this key securely.</strong> For security reasons, the full secret key will not be shown again.
+                </span>
+              </div>
             </div>
           )}
 
@@ -615,14 +557,14 @@ export const Projects: React.FC = () => {
           <form onSubmit={handleCreateKey} className="flex gap-2">
             <Input
               type="text"
-              placeholder="Key label (e.g. Production Upload Service)"
+              placeholder="Key label (e.g. Upload Service)"
               value={newKeyName}
               onChange={(e) => setNewKeyName(e.target.value)}
               required
               className="h-8 text-xs"
             />
             <Button type="submit" size="sm" disabled={creatingKey || !newKeyName.trim()} className="shrink-0">
-              {creatingKey ? 'Generating...' : 'Generate Key'}
+              {creatingKey ? 'Generating...' : 'Create Key'}
             </Button>
           </form>
 
@@ -630,138 +572,48 @@ export const Projects: React.FC = () => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h4 className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
-                Active Scoped Keys ({apiKeys.length})
+                Active API Keys ({apiKeys.length})
               </h4>
             </div>
 
             {apiKeys.length === 0 ? (
               <div className="p-6 text-center rounded-lg border border-dashed border-border/80 text-xs text-muted-foreground italic">
-                No active API keys yet. Generate a key above to start uploading assets.
+                No active API keys created yet. Generate a key above to obtain an `x-api-key` header token.
               </div>
             ) : (
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {apiKeys.map((k) => {
-                  const storedSecret =
-                    getKeySecret(k.id) ||
-                    (createdKeySecret && apiKeys.find((item) => item.id === k.id)?.key === createdKeySecret
-                      ? createdKeySecret
-                      : null)
-                  const isRevealed = !!revealedKeyIds[k.id]
-                  const isCopied = copiedKeyId === k.id
-
-                  return (
-                    <div
-                      key={k.id}
-                      className="p-3 rounded-lg border border-border/80 bg-card/60 backdrop-blur-sm space-y-2 transition-all hover:border-border"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-xs text-foreground truncate">{k.name}</p>
-                            {k.is_active && (
-                              <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500" title="Active Key" />
-                            )}
-                          </div>
-                          <p className="text-muted-foreground font-mono text-[10px] mt-0.5">
-                            Created: {formatDate(k.created_at)}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setKeyToDelete(k)}
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            title="Delete API Key"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {apiKeys.map((k) => (
+                  <div
+                    key={k.id}
+                    className="p-3 rounded-lg border border-border/80 bg-card/60 backdrop-blur-sm flex items-center justify-between gap-3 transition-all hover:border-border"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-xs text-foreground truncate">{k.name}</p>
+                        {k.is_active && (
+                          <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500" title="Active" />
+                        )}
                       </div>
-
-                      {/* Key Value Row with Eye toggle and Copy button */}
-                      <div className="flex items-center gap-1.5 pt-0.5">
-                        <div className="flex-1 min-w-0 flex items-center justify-between px-2.5 py-1.5 rounded-md bg-background/80 border border-border/70 font-mono text-[11px] text-foreground">
-                          {storedSecret ? (
-                            <span className="truncate selection:bg-primary/30">
-                              {isRevealed ? storedSecret : `${storedSecret.slice(0, 7)}${'•'.repeat(20)}`}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground italic text-[10px]">
-                              {isRevealed ? `Key ID: ${k.id}` : '••••••••••••••••••••••••'}
-                            </span>
-                          )}
-
-                          {storedSecret && (
-                            <span className="text-[9px] font-sans px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20 shrink-0 ml-1">
-                              Saved
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Eye Reveal Toggle Button */}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={() => toggleRevealKey(k.id)}
-                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
-                          title={isRevealed ? 'Hide Secret' : 'Reveal Secret'}
-                        >
-                          {isRevealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                        </Button>
-
-                        {/* Copy Key Button */}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleCopyKey(k.id, storedSecret || undefined)}
-                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
-                          title="Copy API Key Secret"
-                        >
-                          {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                        </Button>
+                      <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground mt-0.5">
+                        <span>mbk_••••••••••••••••</span>
+                        <span>•</span>
+                        <span className="font-sans">{formatDate(k.created_at)}</span>
                       </div>
-
-                      {/* Optional Manual Store if secret wasn't saved on this machine */}
-                      {!storedSecret && manualInputKeyId !== k.id && (
-                        <div className="pt-0.5 flex items-center justify-between text-[10px] text-muted-foreground">
-                          <span>Key generated on another session.</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setManualInputKeyId(k.id)
-                              setManualSecretInput('')
-                            }}
-                            className="text-primary hover:underline font-medium"
-                          >
-                            Paste & Remember Key
-                          </button>
-                        </div>
-                      )}
-
-                      {manualInputKeyId === k.id && (
-                        <div className="flex gap-1.5 pt-1">
-                          <Input
-                            type="text"
-                            placeholder="Paste mbk_... secret"
-                            value={manualSecretInput}
-                            onChange={(e) => setManualSecretInput(e.target.value)}
-                            className="h-7 text-[11px] font-mono"
-                          />
-                          <Button size="sm" className="h-7 text-[10px]" onClick={() => handleSaveManualSecret(k)}>
-                            Save
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => setManualInputKeyId(null)}>
-                            Cancel
-                          </Button>
-                        </div>
-                      )}
                     </div>
-                  )
-                })}
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setKeyToDelete(k)}
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        title="Delete Key"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
