@@ -3,10 +3,12 @@ import { api, API_BASE_URL } from '@/api/client'
 import type { FileItem, Project, PaginatedResponse } from '@/types/api'
 import { formatDate, formatBytes } from '@/lib/utils'
 import { getKeySecret, saveKeyToVault } from '@/lib/keys'
+import { useToast } from '@/context/ToastContext'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
+import { AlertDialog } from '@/components/ui/alert-dialog'
 import {
   UploadCloud,
   FileText,
@@ -22,6 +24,7 @@ import {
 } from 'lucide-react'
 
 export const MediaManager: React.FC = () => {
+  const { toast } = useToast()
   const [files, setFiles] = useState<FileItem[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
@@ -36,6 +39,10 @@ export const MediaManager: React.FC = () => {
   const [showKeySecret, setShowKeySecret] = useState(false)
   const [selectedVariants, setSelectedVariants] = useState<Record<string, boolean>>({})
   const [uploading, setUploading] = useState(false)
+
+  // File Delete State
+  const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null)
+  const [deletingFile, setDeletingFile] = useState(false)
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -150,22 +157,45 @@ export const MediaManager: React.FC = () => {
         })
       }
 
+      toast({
+        title: 'Asset Uploaded',
+        description: `"${selectedFile.name}" has been stored and processed successfully.`,
+        variant: 'success',
+      })
+
       setIsUploadOpen(false)
       fetchFiles()
     } catch {
-      alert('Upload failed. Please check your API Key and file format.')
+      toast({
+        title: 'Upload Failed',
+        description: 'Please verify the API Key secret and file format.',
+        variant: 'destructive',
+      })
     } finally {
       setUploading(false)
     }
   }
 
-  const handleDeleteFile = async (fileId: string) => {
-    if (!confirm('Permanently delete this file and its S3 variants?')) return
+  const handleConfirmDeleteFile = async () => {
+    if (!fileToDelete) return
+    setDeletingFile(true)
     try {
-      await api.delete(`/files/${fileId}`)
+      await api.delete(`/files/${fileToDelete.id}`)
+      toast({
+        title: 'Object Deleted',
+        description: `File "${fileToDelete.filename}" and its rendered S3 variants have been removed.`,
+        variant: 'success',
+      })
+      setFileToDelete(null)
       fetchFiles()
     } catch {
-      alert('Failed to delete file')
+      toast({
+        title: 'Delete Failed',
+        description: 'Unable to delete media object.',
+        variant: 'destructive',
+      })
+    } finally {
+      setDeletingFile(false)
     }
   }
 
@@ -221,8 +251,12 @@ export const MediaManager: React.FC = () => {
             <ImageIcon className="h-5 w-5" />
           </div>
           <p className="font-semibold text-foreground text-sm">No files uploaded yet</p>
-          <p className="text-xs text-muted-foreground mt-1 mb-4">Upload your first asset using a scoped API key to trigger variant generation.</p>
-          <Button onClick={handleOpenUpload} size="sm">Upload Object</Button>
+          <p className="text-xs text-muted-foreground mt-1 mb-4">
+            Upload your first asset using a scoped API key to trigger variant generation.
+          </p>
+          <Button onClick={handleOpenUpload} size="sm">
+            Upload Object
+          </Button>
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -255,7 +289,7 @@ export const MediaManager: React.FC = () => {
                       <ExternalLink className="h-3.5 w-3.5" />
                     </a>
                     <button
-                      onClick={() => handleDeleteFile(file.id)}
+                      onClick={() => setFileToDelete(file)}
                       className="p-1 rounded text-red-400 hover:bg-white/20 transition-colors"
                       title="Delete Object"
                     >
@@ -309,6 +343,18 @@ export const MediaManager: React.FC = () => {
           })}
         </div>
       )}
+
+      {/* Shadcn Alert Dialog: Delete File Confirmation */}
+      <AlertDialog
+        open={!!fileToDelete}
+        onClose={() => setFileToDelete(null)}
+        onConfirm={handleConfirmDeleteFile}
+        loading={deletingFile}
+        variant="destructive"
+        title="Delete Media Object"
+        description={`Are you sure you want to permanently delete "${fileToDelete?.filename}" and all rendered S3 variants? This action cannot be reversed.`}
+        confirmLabel="Delete Object"
+      />
 
       {/* Upload Modal */}
       <Dialog open={isUploadOpen} onClose={() => setIsUploadOpen(false)} title={`Upload Asset - ${activeProject?.name}`} className="max-w-md">

@@ -3,10 +3,12 @@ import { api } from '@/api/client'
 import type { Project, ApiKey, PaginatedResponse } from '@/types/api'
 import { formatDate } from '@/lib/utils'
 import { saveKeyToVault, removeKeyFromVault, getKeySecret } from '@/lib/keys'
+import { useToast } from '@/context/ToastContext'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog } from '@/components/ui/dialog'
+import { AlertDialog } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import {
   Plus,
@@ -18,7 +20,6 @@ import {
   RefreshCw,
   CheckSquare,
   Square,
-  AlertTriangle,
   Layers,
   Eye,
   EyeOff,
@@ -26,6 +27,7 @@ import {
 } from 'lucide-react'
 
 export const Projects: React.FC = () => {
+  const { toast } = useToast()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -33,6 +35,7 @@ export const Projects: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectDesc, setNewProjectDesc] = useState('')
+  const [creatingProject, setCreatingProject] = useState(false)
 
   // Selected Project for API Keys / Settings / Delete
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
@@ -45,16 +48,19 @@ export const Projects: React.FC = () => {
   const [manualInputKeyId, setManualInputKeyId] = useState<string | null>(null)
   const [manualSecretInput, setManualSecretInput] = useState('')
   const [creatingKey, setCreatingKey] = useState(false)
+  const [keyToDelete, setKeyToDelete] = useState<ApiKey | null>(null)
+  const [deletingKey, setDeletingKey] = useState(false)
 
   // Settings Edit Modal
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [variantsJson, setVariantsJson] = useState('')
   const [settingsError, setSettingsError] = useState('')
+  const [savingSettings, setSavingSettings] = useState(false)
 
   // Delete Project Modal State
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
   const [isSoftDelete, setIsSoftDelete] = useState(true)
-  const [deleting, setDeleting] = useState(false)
+  const [deletingProject, setDeletingProject] = useState(false)
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -73,23 +79,37 @@ export const Projects: React.FC = () => {
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!newProjectName.trim()) return
+
+    setCreatingProject(true)
     try {
       await api.post('/projects', {
-        name: newProjectName,
-        description: newProjectDesc || undefined,
+        name: newProjectName.trim(),
+        description: newProjectDesc.trim() || undefined,
         settings: {
           variants: {
             thumbnail: { width: 150, height: 150, fit: 'cover', format: 'webp', quality: 80 },
-            card: { width: 600, fit: 'contain', format: 'jpg', quality: 85 }
-          }
-        }
+            card: { width: 600, fit: 'contain', format: 'jpg', quality: 85 },
+          },
+        },
+      })
+      toast({
+        title: 'Project Created',
+        description: `Project "${newProjectName}" has been configured with default variant rules.`,
+        variant: 'success',
       })
       setIsCreateOpen(false)
       setNewProjectName('')
       setNewProjectDesc('')
       fetchProjects()
     } catch {
-      alert('Failed to create project')
+      toast({
+        title: 'Creation Failed',
+        description: 'Unable to create project. Please verify backend connectivity.',
+        variant: 'destructive',
+      })
+    } finally {
+      setCreatingProject(false)
     }
   }
 
@@ -118,7 +138,7 @@ export const Projects: React.FC = () => {
     setCreatingKey(true)
     try {
       const res = await api.post<ApiKey>(`/projects/${selectedProject.id}/keys`, {
-        name: newKeyName.trim()
+        name: newKeyName.trim(),
       })
 
       const generatedKey = res.data.key
@@ -134,26 +154,48 @@ export const Projects: React.FC = () => {
         setRevealedKeyIds((prev) => ({ ...prev, [res.data.id]: true }))
       }
 
+      toast({
+        title: 'API Key Generated',
+        description: `Scoped key "${res.data.name}" is active and ready.`,
+        variant: 'success',
+      })
       setNewKeyName('')
       await loadProjectKeys(selectedProject.id)
     } catch {
-      alert('Failed to create API Key')
+      toast({
+        title: 'Key Generation Failed',
+        description: 'Failed to create scoped API key.',
+        variant: 'destructive',
+      })
     } finally {
       setCreatingKey(false)
     }
   }
 
-  const handleDeleteKey = async (keyId: string) => {
-    if (!selectedProject || !confirm('Permanently delete this API Key?')) return
+  const handleConfirmDeleteKey = async () => {
+    if (!selectedProject || !keyToDelete) return
+    setDeletingKey(true)
     try {
-      await api.delete(`/projects/${selectedProject.id}/keys/${keyId}`)
-      removeKeyFromVault(keyId)
-      if (createdKeySecret && apiKeys.find((k) => k.id === keyId)?.key === createdKeySecret) {
+      await api.delete(`/projects/${selectedProject.id}/keys/${keyToDelete.id}`)
+      removeKeyFromVault(keyToDelete.id)
+      if (createdKeySecret && createdKeySecret === getKeySecret(keyToDelete.id)) {
         setCreatedKeySecret('')
       }
+      toast({
+        title: 'API Key Revoked',
+        description: `Key "${keyToDelete.name}" has been permanently deleted.`,
+        variant: 'success',
+      })
+      setKeyToDelete(null)
       await loadProjectKeys(selectedProject.id)
     } catch {
-      alert('Failed to delete key')
+      toast({
+        title: 'Deletion Failed',
+        description: 'Unable to delete API key.',
+        variant: 'destructive',
+      })
+    } finally {
+      setDeletingKey(false)
     }
   }
 
@@ -167,15 +209,24 @@ export const Projects: React.FC = () => {
   const handleCopyKey = (keyId: string, fallbackKey?: string) => {
     const secret = getKeySecret(keyId) || fallbackKey || createdKeySecret
     if (!secret) {
-      // Prompt user or copy ID if no secret
       navigator.clipboard.writeText(keyId)
       setCopiedKeyId(keyId)
+      toast({
+        title: 'Key ID Copied',
+        description: 'Copied key identifier to clipboard.',
+        variant: 'info',
+      })
       setTimeout(() => setCopiedKeyId(null), 2000)
       return
     }
 
     navigator.clipboard.writeText(secret)
     setCopiedKeyId(keyId)
+    toast({
+      title: 'Secret Copied',
+      description: 'API key secret copied to clipboard.',
+      variant: 'success',
+    })
     setTimeout(() => setCopiedKeyId(null), 2000)
   }
 
@@ -191,6 +242,11 @@ export const Projects: React.FC = () => {
     setRevealedKeyIds((prev) => ({ ...prev, [key.id]: true }))
     setManualInputKeyId(null)
     setManualSecretInput('')
+    toast({
+      title: 'Secret Remembered',
+      description: `Saved secret token for "${key.name}" to workspace vault.`,
+      variant: 'success',
+    })
   }
 
   const handleOpenSettings = (project: Project) => {
@@ -202,39 +258,69 @@ export const Projects: React.FC = () => {
 
   const handleSaveSettings = async () => {
     if (!selectedProject) return
+    setSavingSettings(true)
     try {
       const parsedVariants = JSON.parse(variantsJson)
       await api.put(`/projects/${selectedProject.id}`, {
-        settings: { variants: parsedVariants }
+        settings: { variants: parsedVariants },
+      })
+      toast({
+        title: 'Variants Updated',
+        description: `Updated image transformation presets for "${selectedProject.name}".`,
+        variant: 'success',
       })
       setIsSettingsOpen(false)
       fetchProjects()
     } catch {
       setSettingsError('Invalid JSON format. Please verify variants structure.')
+      toast({
+        title: 'Validation Error',
+        description: 'Please correct the JSON formatting before saving.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingSettings(false)
     }
   }
 
   const handleSyncVariants = async (projectId: string) => {
     try {
       await api.post(`/projects/${projectId}/sync-variants`)
-      alert('Triggered variant regeneration sync for all project images!')
+      toast({
+        title: 'Variant Sync Triggered',
+        description: 'Dispatched background jobs to regenerate all configured variants.',
+        variant: 'success',
+      })
     } catch {
-      alert('Failed to trigger variant sync')
+      toast({
+        title: 'Sync Failed',
+        description: 'Failed to trigger background variant pipeline.',
+        variant: 'destructive',
+      })
     }
   }
 
   const handleConfirmDeleteProject = async () => {
     if (!projectToDelete) return
-    setDeleting(true)
+    setDeletingProject(true)
     try {
       const queryParam = isSoftDelete ? '' : '?permanent=true'
       await api.delete(`/projects/${projectToDelete.id}${queryParam}`)
+      toast({
+        title: isSoftDelete ? 'Project Soft Deleted' : 'Project Permanently Deleted',
+        description: `Project "${projectToDelete.name}" has been removed.`,
+        variant: 'success',
+      })
       setProjectToDelete(null)
       fetchProjects()
     } catch {
-      alert('Failed to delete project')
+      toast({
+        title: 'Deletion Failed',
+        description: 'Failed to delete project. Please try again.',
+        variant: 'destructive',
+      })
     } finally {
-      setDeleting(false)
+      setDeletingProject(false)
     }
   }
 
@@ -245,13 +331,15 @@ export const Projects: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold tracking-tight text-foreground">Projects</h2>
-            <Badge variant="secondary" className="font-mono">{projects.length}</Badge>
+            <Badge variant="secondary" className="font-mono">
+              {projects.length}
+            </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
             Manage multi-tenant storage buckets, API keys, and image transformation presets
           </p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)} className="gap-1.5 self-start sm:self-auto">
+        <Button onClick={() => setIsCreateOpen(true)} className="gap-1.5 self-start sm:self-auto" size="sm">
           <Plus className="h-3.5 w-3.5" />
           <span>New Project</span>
         </Button>
@@ -268,8 +356,12 @@ export const Projects: React.FC = () => {
             <Layers className="h-5 w-5" />
           </div>
           <h3 className="text-sm font-semibold text-foreground">No Projects Configured</h3>
-          <p className="text-xs text-muted-foreground mt-1 mb-4 max-w-sm mx-auto">Create a project to obtain scoped API keys and define automatic image resizing pipelines.</p>
-          <Button onClick={() => setIsCreateOpen(true)} size="sm">Create First Project</Button>
+          <p className="text-xs text-muted-foreground mt-1 mb-4 max-w-sm mx-auto">
+            Create a project to obtain scoped API keys and define automatic image resizing pipelines.
+          </p>
+          <Button onClick={() => setIsCreateOpen(true)} size="sm">
+            Create First Project
+          </Button>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -280,8 +372,12 @@ export const Projects: React.FC = () => {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <CardTitle className="truncate group-hover:text-primary transition-colors">{project.name}</CardTitle>
-                      <CardDescription className="line-clamp-2 mt-1 min-h-[32px]">{project.description || 'No description provided'}</CardDescription>
+                      <CardTitle className="truncate group-hover:text-primary transition-colors">
+                        {project.name}
+                      </CardTitle>
+                      <CardDescription className="line-clamp-2 mt-1 min-h-[32px]">
+                        {project.description || 'No description provided'}
+                      </CardDescription>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <Badge variant="secondary" className="font-mono text-[10px]">
@@ -303,18 +399,27 @@ export const Projects: React.FC = () => {
 
                 <CardContent className="space-y-2.5 pt-0">
                   <div className="text-[11px] text-muted-foreground space-y-0.5 font-mono">
-                    <p className="truncate">ID: <span className="text-foreground/80">{project.id}</span></p>
-                    <p>Created: <span className="text-foreground/80 font-sans">{formatDate(project.created_at)}</span></p>
+                    <p className="truncate">
+                      ID: <span className="text-foreground/80">{project.id}</span>
+                    </p>
+                    <p>
+                      Created: <span className="text-foreground/80 font-sans">{formatDate(project.created_at)}</span>
+                    </p>
                   </div>
 
                   <div className="rounded-md bg-background/50 p-2 text-xs font-mono border border-border/60">
-                    <p className="font-semibold text-muted-foreground uppercase text-[9px] mb-1 tracking-wider">Configured Variants</p>
+                    <p className="font-semibold text-muted-foreground uppercase text-[9px] mb-1 tracking-wider">
+                      Configured Variants
+                    </p>
                     <div className="flex flex-wrap gap-1">
                       {Object.keys(project.settings.variants || {}).length === 0 ? (
                         <span className="text-[10px] text-muted-foreground italic">None configured</span>
                       ) : (
                         Object.keys(project.settings.variants || {}).map((v) => (
-                          <span key={v} className="bg-card px-1.5 py-0.5 rounded border border-border/70 text-[10px] text-foreground/90">
+                          <span
+                            key={v}
+                            className="bg-card px-1.5 py-0.5 rounded border border-border/70 text-[10px] text-foreground/90"
+                          >
                             {v}
                           </span>
                         ))
@@ -325,17 +430,35 @@ export const Projects: React.FC = () => {
 
                 <CardFooter className="pt-2 border-t border-border/40 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
-                    <Button variant="outline" size="sm" onClick={() => handleOpenKeys(project)} title="Manage API Keys" className="gap-1 text-[11px]">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenKeys(project)}
+                      title="Manage API Keys"
+                      className="gap-1 text-[11px]"
+                    >
                       <Key className="h-3.5 w-3.5" />
                       <span>Keys</span>
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleOpenSettings(project)} title="Variant Settings" className="gap-1 text-[11px]">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenSettings(project)}
+                      title="Variant Settings"
+                      className="gap-1 text-[11px]"
+                    >
                       <SlidersHorizontal className="h-3.5 w-3.5" />
                       <span>Variants</span>
                     </Button>
                   </div>
 
-                  <Button variant="ghost" size="icon" onClick={() => handleSyncVariants(project.id)} title="Regenerate All Variants" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleSyncVariants(project.id)}
+                    title="Regenerate All Variants"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  >
                     <RefreshCw className="h-3.5 w-3.5" />
                   </Button>
                 </CardFooter>
@@ -345,55 +468,56 @@ export const Projects: React.FC = () => {
         </div>
       )}
 
-      {/* Delete Project Modal */}
-      <Dialog open={!!projectToDelete} onClose={() => setProjectToDelete(null)} title={`Delete Project`}>
-        <div className="space-y-4">
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs">
-            <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-sm mb-1 text-destructive">Confirm Project Deletion</p>
-              <p className="leading-relaxed text-muted-foreground">
-                You are about to delete project <strong className="text-foreground">{projectToDelete?.name}</strong>.
-              </p>
-            </div>
+      {/* Shadcn Alert Dialog: Delete Project Confirmation */}
+      <AlertDialog
+        open={!!projectToDelete}
+        onClose={() => setProjectToDelete(null)}
+        onConfirm={handleConfirmDeleteProject}
+        loading={deletingProject}
+        variant="destructive"
+        title="Delete Project"
+        description={`You are about to delete "${projectToDelete?.name}".`}
+        confirmLabel={deletingProject ? 'Deleting...' : isSoftDelete ? 'Soft Delete Project' : 'Permanently Delete'}
+      >
+        <div
+          onClick={() => setIsSoftDelete(!isSoftDelete)}
+          className="flex items-start gap-2.5 p-3 rounded-md border border-white/[0.08] bg-white/[0.02] cursor-pointer select-none hover:bg-white/[0.05] transition-colors"
+        >
+          <div className="mt-0.5">
+            {isSoftDelete ? (
+              <CheckSquare className="h-4 w-4 text-primary" />
+            ) : (
+              <Square className="h-4 w-4 text-muted-foreground" />
+            )}
           </div>
-
-          <div
-            onClick={() => setIsSoftDelete(!isSoftDelete)}
-            className="flex items-start gap-2.5 p-3 rounded-md border border-border/80 bg-background/50 cursor-pointer select-none hover:bg-background/80 transition-colors"
-          >
-            <div className="mt-0.5">
-              {isSoftDelete ? (
-                <CheckSquare className="h-4 w-4 text-primary" />
-              ) : (
-                <Square className="h-4 w-4 text-muted-foreground" />
-              )}
-            </div>
-            <div className="text-xs space-y-0.5">
-              <span className="font-medium text-foreground">Soft Delete (Safe Mode - 30 Day Recovery)</span>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Marks the project as deleted and keeps database records and S3 files intact for 30 days before scheduled purge.
-                Uncheck to trigger immediate permanent deletion of all stored blobs.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={() => setProjectToDelete(null)} disabled={deleting}>
-              Cancel
-            </Button>
-            <Button variant="destructive" size="sm" onClick={handleConfirmDeleteProject} disabled={deleting}>
-              {deleting ? 'Deleting...' : isSoftDelete ? 'Soft Delete Project' : 'Permanently Delete'}
-            </Button>
+          <div className="text-xs space-y-0.5">
+            <span className="font-medium text-foreground">Soft Delete (Safe Mode - 30 Day Recovery)</span>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Retains records and S3 files for 30 days before purge. Uncheck to trigger immediate permanent destruction.
+            </p>
           </div>
         </div>
-      </Dialog>
+      </AlertDialog>
+
+      {/* Shadcn Alert Dialog: Delete API Key Confirmation */}
+      <AlertDialog
+        open={!!keyToDelete}
+        onClose={() => setKeyToDelete(null)}
+        onConfirm={handleConfirmDeleteKey}
+        loading={deletingKey}
+        variant="destructive"
+        title="Revoke API Key"
+        description={`Are you sure you want to delete scoped key "${keyToDelete?.name}"? Any backend pipelines or upload scripts using this key will immediately lose access.`}
+        confirmLabel="Revoke Key"
+      />
 
       {/* Create Project Modal */}
       <Dialog open={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Create New Project">
         <form onSubmit={handleCreateProject} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider block">Project Name</label>
+            <label className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider block">
+              Project Name
+            </label>
             <Input
               type="text"
               placeholder="e.g. E-Commerce Store"
@@ -404,7 +528,9 @@ export const Projects: React.FC = () => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider block">Description (Optional)</label>
+            <label className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider block">
+              Description (Optional)
+            </label>
             <Input
               type="text"
               placeholder="Brief summary of project scope"
@@ -414,10 +540,12 @@ export const Projects: React.FC = () => {
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" type="button" onClick={() => setIsCreateOpen(false)}>
+            <Button variant="outline" size="sm" type="button" onClick={() => setIsCreateOpen(false)} disabled={creatingProject}>
               Cancel
             </Button>
-            <Button size="sm" type="submit">Create Project</Button>
+            <Button size="sm" type="submit" disabled={creatingProject || !newProjectName.trim()}>
+              {creatingProject ? 'Creating...' : 'Create Project'}
+            </Button>
           </div>
         </form>
       </Dialog>
@@ -513,7 +641,11 @@ export const Projects: React.FC = () => {
             ) : (
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                 {apiKeys.map((k) => {
-                  const storedSecret = getKeySecret(k.id) || (createdKeySecret && apiKeys.find((item) => item.id === k.id)?.key === createdKeySecret ? createdKeySecret : null)
+                  const storedSecret =
+                    getKeySecret(k.id) ||
+                    (createdKeySecret && apiKeys.find((item) => item.id === k.id)?.key === createdKeySecret
+                      ? createdKeySecret
+                      : null)
                   const isRevealed = !!revealedKeyIds[k.id]
                   const isCopied = copiedKeyId === k.id
 
@@ -539,7 +671,7 @@ export const Projects: React.FC = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDeleteKey(k.id)}
+                            onClick={() => setKeyToDelete(k)}
                             className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                             title="Delete API Key"
                           >
@@ -575,7 +707,7 @@ export const Projects: React.FC = () => {
                           size="icon"
                           onClick={() => toggleRevealKey(k.id)}
                           className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
-                          title={isRevealed ? "Hide Secret" : "Reveal Secret"}
+                          title={isRevealed ? 'Hide Secret' : 'Reveal Secret'}
                         >
                           {isRevealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                         </Button>
@@ -657,8 +789,12 @@ export const Projects: React.FC = () => {
           />
 
           <div className="flex justify-end gap-2 pt-1">
-            <Button variant="outline" size="sm" onClick={() => setIsSettingsOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleSaveSettings}>Save Configuration</Button>
+            <Button variant="outline" size="sm" onClick={() => setIsSettingsOpen(false)} disabled={savingSettings}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSaveSettings} disabled={savingSettings}>
+              {savingSettings ? 'Saving...' : 'Save Configuration'}
+            </Button>
           </div>
         </div>
       </Dialog>

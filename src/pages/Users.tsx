@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { api } from '@/api/client'
 import type { User, PaginatedResponse, Role } from '@/types/api'
 import { formatDate } from '@/lib/utils'
+import { useToast } from '@/context/ToastContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog } from '@/components/ui/dialog'
+import { AlertDialog } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Trash2, ShieldCheck, UserCheck } from 'lucide-react'
 
 export const UsersPage: React.FC = () => {
+  const { toast } = useToast()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -18,8 +21,13 @@ export const UsersPage: React.FC = () => {
   const [newPassword, setNewPassword] = useState('')
   const [newRole, setNewRole] = useState<Role>('user')
   const [createError, setCreateError] = useState('')
+  const [creatingUser, setCreatingUser] = useState(false)
 
-  const fetchUsers = React.useCallback(async () => {
+  // User Delete State
+  const [userToDelete, setUserToDelete] = useState<User | null>(null)
+  const [deletingUser, setDeletingUser] = useState(false)
+
+  const fetchUsers = useCallback(async () => {
     try {
       const res = await api.get<PaginatedResponse<User>>('/users')
       setUsers(res.data.data)
@@ -37,38 +45,64 @@ export const UsersPage: React.FC = () => {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreateError('')
+    setCreatingUser(true)
     try {
       await api.post('/users', {
-        username: newUsername,
+        username: newUsername.trim(),
         password: newPassword,
         role: newRole,
+      })
+      toast({
+        title: 'Account Provisioned',
+        description: `User account "${newUsername}" created with role "${newRole}".`,
+        variant: 'success',
       })
       setIsCreateOpen(false)
       setNewUsername('')
       setNewPassword('')
       fetchUsers()
     } catch (err: unknown) {
+      let errMsg = 'Failed to create user'
       if (err && typeof err === 'object' && 'response' in err) {
         const resp = (err as { response?: { data?: { error?: string } } }).response
-        setCreateError(resp?.data?.error || 'Failed to create user')
-      } else {
-        setCreateError('Failed to create user')
+        errMsg = resp?.data?.error || errMsg
       }
+      setCreateError(errMsg)
+      toast({
+        title: 'Provisioning Failed',
+        description: errMsg,
+        variant: 'destructive',
+      })
+    } finally {
+      setCreatingUser(false)
     }
   }
 
-  const handleDeleteUser = async (userId: string, username: string) => {
-    if (!confirm(`Delete user account '${username}'?`)) return
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return
+    setDeletingUser(true)
     try {
-      await api.delete(`/users/${userId}`)
+      await api.delete(`/users/${userToDelete.id}`)
+      toast({
+        title: 'User Deleted',
+        description: `Account "${userToDelete.username}" has been removed.`,
+        variant: 'success',
+      })
+      setUserToDelete(null)
       fetchUsers()
     } catch (err: unknown) {
+      let errMsg = 'Failed to delete user'
       if (err && typeof err === 'object' && 'response' in err) {
         const resp = (err as { response?: { data?: { error?: string } } }).response
-        alert(resp?.data?.error || 'Failed to delete user')
-      } else {
-        alert('Failed to delete user')
+        errMsg = resp?.data?.error || errMsg
       }
+      toast({
+        title: 'Deletion Error',
+        description: errMsg,
+        variant: 'destructive',
+      })
+    } finally {
+      setDeletingUser(false)
     }
   }
 
@@ -133,11 +167,11 @@ export const UsersPage: React.FC = () => {
                     <td className="py-2.5 px-4 text-right">
                       {u.role !== 'su' && (
                         <button
-                          onClick={() => handleDeleteUser(u.id, u.username)}
+                          onClick={() => setUserToDelete(u)}
                           className="h-6 w-6 rounded inline-flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                           title="Delete User"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       )}
                     </td>
@@ -148,6 +182,18 @@ export const UsersPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Shadcn Alert Dialog: Delete User Confirmation */}
+      <AlertDialog
+        open={!!userToDelete}
+        onClose={() => setUserToDelete(null)}
+        onConfirm={handleConfirmDeleteUser}
+        loading={deletingUser}
+        variant="destructive"
+        title="Delete User Account"
+        description={`Are you sure you want to delete user account "${userToDelete?.username}"? The user will immediately lose access to this workspace.`}
+        confirmLabel="Delete User"
+      />
 
       {/* Create User Modal */}
       <Dialog open={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Provision New Account" className="max-w-md">
@@ -193,10 +239,12 @@ export const UsersPage: React.FC = () => {
           </div>
 
           <div className="pt-2 flex justify-end gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)}>
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)} disabled={creatingUser}>
               Cancel
             </Button>
-            <Button type="submit" size="sm">Create Account</Button>
+            <Button type="submit" size="sm" disabled={creatingUser || !newUsername.trim() || !newPassword}>
+              {creatingUser ? 'Provisioning...' : 'Create Account'}
+            </Button>
           </div>
         </form>
       </Dialog>
