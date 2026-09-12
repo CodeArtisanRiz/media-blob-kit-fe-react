@@ -216,10 +216,12 @@ export const Projects: React.FC = () => {
   const [keyToDelete, setKeyToDelete] = useState<ApiKey | null>(null)
   const [deletingKey, setDeletingKey] = useState(false)
 
-  // Settings Edit Modal (Interactive)
+  // Project Settings & Quoras Edit Modal
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [editVariants, setEditVariants] = useState<Record<string, VariantConfig>>({})
   const [editKeepOriginal, setEditKeepOriginal] = useState(true)
+  const [editTransformsLimit, setEditTransformsLimit] = useState<number | null>(null)
+  const [editStorageLimit, setEditStorageLimit] = useState<number | null>(null)
   const [savingSettings, setSavingSettings] = useState(false)
   const [showPresetsDropdown, setShowPresetsDropdown] = useState(false)
   const [customVariantName, setCustomVariantName] = useState('')
@@ -377,6 +379,8 @@ export const Projects: React.FC = () => {
     setSelectedProject(project)
     setEditVariants({ ...(project.settings.variants || {}) })
     setEditKeepOriginal(project.settings.keep_original !== false)
+    setEditTransformsLimit(project.transforms_limit !== undefined ? project.transforms_limit : 10000)
+    setEditStorageLimit(project.storage_limit_bytes !== undefined ? project.storage_limit_bytes : 5368709120)
     setIsSettingsOpen(true)
     setShowPresetsDropdown(false)
     setCustomVariantName('')
@@ -443,10 +447,12 @@ export const Projects: React.FC = () => {
           variants: editVariants,
           keep_original: editKeepOriginal,
         },
+        storage_limit_bytes: editStorageLimit,
+        transforms_limit: editTransformsLimit,
       })
       toast({
         title: 'Settings Updated',
-        description: `Updated variant presets and storage policy for "${selectedProject.name}".`,
+        description: `Updated presets and limits for "${selectedProject.name}".`,
         variant: 'success',
       })
       setIsSettingsOpen(false)
@@ -575,11 +581,12 @@ export const Projects: React.FC = () => {
               const variantCount = Object.keys(project.settings.variants || {}).length
               const usedBytes = project.storage_used_bytes || 0
               const limitBytes = project.storage_limit_bytes || 5 * 1024 * 1024 * 1024
-              const storagePercent = Math.min(100, Math.round((usedBytes / limitBytes) * 100))
+              const storagePercent = limitBytes === -1 ? 0 : Math.min(100, Math.round((usedBytes / limitBytes) * 100))
 
               const usedTransforms = project.transforms_used || 0
+              const transformsTotal = project.transforms_total || 0
               const limitTransforms = project.transforms_limit || 10000
-              const transformPercent = Math.min(100, Math.round((usedTransforms / limitTransforms) * 100))
+              const transformPercent = limitTransforms === -1 ? 0 : Math.min(100, Math.round((usedTransforms / limitTransforms) * 100))
 
               const keepOriginal = project.settings.keep_original !== false
 
@@ -624,35 +631,44 @@ export const Projects: React.FC = () => {
                             <span>Storage</span>
                           </span>
                           <span className="font-mono text-[10px]">
-                            {formatBytes(usedBytes)} / {formatBytes(limitBytes)}
+                            {limitBytes === -1 ? `${formatBytes(usedBytes)} / ∞` : `${formatBytes(usedBytes)} / ${formatBytes(limitBytes)}`}
                           </span>
                         </div>
-                        <div className="h-1.5 w-full bg-secondary/80 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              storagePercent > 90 ? 'bg-destructive' : 'bg-primary'
-                            }`}
-                            style={{ width: `${Math.max(2, storagePercent)}%` }}
-                          />
-                        </div>
+                        {limitBytes !== -1 && (
+                          <div className="h-1.5 w-full bg-secondary/80 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                storagePercent > 90 ? 'bg-destructive' : 'bg-primary'
+                              }`}
+                              style={{ width: `${Math.max(2, storagePercent)}%` }}
+                            />
+                          </div>
+                        )}
                       </div>
 
                       {/* Transform Bar */}
                       <div className="space-y-1 pt-0.5">
                         <div className="flex items-center justify-between text-muted-foreground">
-                          <span className="flex items-center gap-1 text-[10px] uppercase font-semibold tracking-wider">
+                          <span className="flex items-center gap-1 text-[10px] uppercase font-semibold tracking-wider" title={`Lifetime Transforms: ${transformsTotal.toLocaleString()}`}>
                             <Zap className="h-3 w-3 text-amber-400" />
-                            <span>Transforms</span>
+                            <span>Monthly Trxs</span>
                           </span>
-                          <span className="font-mono text-[10px]">
-                            {usedTransforms.toLocaleString()} / {limitTransforms.toLocaleString()}
+                          <span className="font-mono text-[10px] flex items-center gap-1">
+                            <span>{usedTransforms.toLocaleString()} / {limitTransforms === -1 ? '∞' : limitTransforms.toLocaleString()}</span>
                           </span>
                         </div>
-                        <div className="h-1.5 w-full bg-secondary/80 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-amber-400 rounded-full transition-all duration-300"
-                            style={{ width: `${Math.max(2, transformPercent)}%` }}
-                          />
+                        {limitTransforms !== -1 && (
+                          <div className="h-1.5 w-full bg-secondary/80 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                transformPercent > 90 ? 'bg-destructive' : 'bg-amber-400'
+                              }`}
+                              style={{ width: `${Math.max(2, transformPercent)}%` }}
+                            />
+                          </div>
+                        )}
+                        <div className="text-[9px] text-muted-foreground/70 font-mono text-right pt-0.5">
+                          Lifetime: {transformsTotal.toLocaleString()}
                         </div>
                       </div>
                     </div>
@@ -968,6 +984,80 @@ export const Projects: React.FC = () => {
         className="max-w-2xl"
       >
         <div className="space-y-5 pt-1">
+          {/* Quotas & Limits Settings */}
+          <div className="p-3.5 rounded-lg border border-border/80 bg-background/40 space-y-4">
+            <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5 border-b border-border/60 pb-2">
+              <HardDrive className="h-3.5 w-3.5 text-primary" />
+              Quotas & Limits
+            </h4>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">
+                  Storage Limit (Bytes)
+                </label>
+                <div className="flex bg-background border border-border/80 rounded-md focus-within:ring-1 focus-within:ring-primary overflow-hidden">
+                  <select
+                    className="w-1/3 text-xs font-mono bg-transparent border-none focus:ring-0 px-2 py-1.5 cursor-pointer border-r border-border/80"
+                    value={editStorageLimit === -1 ? '-1' : editStorageLimit === 5368709120 ? '5G' : editStorageLimit === 53687091200 ? '50G' : 'custom'}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      if (v === '-1') setEditStorageLimit(-1)
+                      else if (v === '5G') setEditStorageLimit(5368709120)
+                      else if (v === '50G') setEditStorageLimit(53687091200)
+                      else setEditStorageLimit(editStorageLimit !== -1 ? editStorageLimit : 1073741824) // 1GB custom default
+                    }}
+                  >
+                    <option value="5G">5 GB</option>
+                    <option value="50G">50 GB</option>
+                    <option value="-1">Unlimited</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                  <Input
+                    type="number"
+                    value={editStorageLimit === -1 ? '' : editStorageLimit || ''}
+                    disabled={editStorageLimit === -1}
+                    onChange={(e) => setEditStorageLimit(e.target.value ? Number(e.target.value) : 0)}
+                    className="flex-1 h-auto text-xs font-mono border-none focus-visible:ring-0 px-2"
+                    placeholder={editStorageLimit === -1 ? '∞' : 'Bytes'}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">
+                  Monthly Transforms Limit
+                </label>
+                <div className="flex bg-background border border-border/80 rounded-md focus-within:ring-1 focus-within:ring-primary overflow-hidden">
+                  <select
+                    className="w-1/3 text-xs font-mono bg-transparent border-none focus:ring-0 px-2 py-1.5 cursor-pointer border-r border-border/80"
+                    value={editTransformsLimit === -1 ? '-1' : editTransformsLimit === 10000 ? '10k' : editTransformsLimit === 100000 ? '100k' : 'custom'}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      if (v === '-1') setEditTransformsLimit(-1)
+                      else if (v === '10k') setEditTransformsLimit(10000)
+                      else if (v === '100k') setEditTransformsLimit(100000)
+                      else setEditTransformsLimit(editTransformsLimit !== -1 ? editTransformsLimit : 50000)
+                    }}
+                  >
+                    <option value="10k">10,000</option>
+                    <option value="100k">100,000</option>
+                    <option value="-1">Unlimited</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                  <Input
+                    type="number"
+                    value={editTransformsLimit === -1 ? '' : editTransformsLimit || ''}
+                    disabled={editTransformsLimit === -1}
+                    onChange={(e) => setEditTransformsLimit(e.target.value ? Number(e.target.value) : 0)}
+                    className="flex-1 h-auto text-xs font-mono border-none focus-visible:ring-0 px-2"
+                    placeholder={editTransformsLimit === -1 ? '∞' : 'Transforms'}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Keep Original Toggle */}
           <div className="p-3.5 rounded-lg border border-border/80 bg-background/40 space-y-3">
             <div className="flex items-center justify-between">

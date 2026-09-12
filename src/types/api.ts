@@ -31,6 +31,7 @@ export interface Project {
   storage_limit_bytes?: number
   transforms_used?: number
   transforms_limit?: number
+  transforms_total?: number
   created_at: string
   updated_at: string
 }
