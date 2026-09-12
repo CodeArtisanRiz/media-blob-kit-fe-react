@@ -981,9 +981,9 @@ export const Projects: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         title={`Project Settings — ${selectedProject?.name}`}
         description="Configure image transformation presets and storage policy"
-        className="max-w-2xl"
+        className="max-w-3xl"
       >
-        <div className="space-y-5 pt-1">
+        <div className="space-y-5">
           {/* Quotas & Limits Settings */}
           <div className="p-3.5 rounded-lg border border-border/80 bg-background/40 space-y-4">
             <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5 border-b border-border/60 pb-2">
