@@ -1,15 +1,12 @@
 import React from 'react'
 import { useLocation, Link } from 'react-router-dom'
-import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/context/ThemeContext'
-import { useToast } from '@/context/ToastContext'
 import {
   PanelLeftClose,
   PanelLeft,
   Menu,
   Sun,
   Moon,
-  LogOut,
   Layers,
 } from 'lucide-react'
 
@@ -25,9 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
   setIsCollapsed,
   setIsOpenMobile,
 }) => {
-  const { user, logout } = useAuth()
   const { resolvedTheme, toggleTheme } = useTheme()
-  const { toast } = useToast()
   const location = useLocation()
 
   const getPageMeta = (pathname: string) => {
@@ -46,15 +41,6 @@ export const Header: React.FC<HeaderProps> = ({
   }
 
   const pageMeta = getPageMeta(location.pathname)
-
-  const handleLogout = () => {
-    logout()
-    toast({
-      title: 'Signed Out',
-      description: 'You have been safely signed out of MediaBlobKit.',
-      variant: 'default',
-    })
-  }
 
   return (
     <header className="h-14 border-b border-border/80 bg-card/60 backdrop-blur-xl sticky top-0 z-30 px-4 md:px-6 flex items-center justify-between gap-4 select-none">
@@ -94,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Right: Engine Status, Theme Toggle, User Profile */}
+      {/* Right: Engine Status, Theme Toggle */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Engine Status Pill */}
         <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary/70 border border-border/60 text-[10px] font-mono text-muted-foreground">
@@ -110,24 +96,6 @@ export const Header: React.FC<HeaderProps> = ({
         >
           {resolvedTheme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5 text-slate-700" />}
         </button>
-
-        {/* User Profile Pill & Logout */}
-        <div className="flex items-center gap-2 pl-1 border-l border-border/60">
-          <div className="hidden sm:flex flex-col text-right">
-            <span className="text-xs font-semibold text-foreground leading-tight">{user?.username}</span>
-            <span className="text-[9px] font-mono uppercase text-muted-foreground leading-none">
-              {user?.role}
-            </span>
-          </div>
-
-          <button
-            onClick={handleLogout}
-            className="h-8 w-8 rounded-md border border-border/70 bg-background/50 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex items-center justify-center shadow-sm"
-            title="Sign Out"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-          </button>
-        </div>
       </div>
     </header>
   )
